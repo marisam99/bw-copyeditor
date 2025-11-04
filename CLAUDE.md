@@ -25,6 +25,7 @@ An R package for automated copyediting using Large Language Models (LLMs). This 
 The tool supports two parsing modes for PDF documents:
 
 #### Text Mode (Default)
+
 -   **Use case:** Publications, reports, text-heavy documents
 -   **Function:** `parse_to_text()` via `parse_document(mode = "text")`
 -   **Process:** Extracts text content from each PDF page
@@ -32,6 +33,7 @@ The tool supports two parsing modes for PDF documents:
 -   **LLM usage:** Text is sent directly to LLM for copyediting
 
 #### Image Mode
+
 -   **Use case:** Slide decks, presentations, visual-heavy documents
 -   **Function:** `parse_to_images()` via `parse_document(mode = "images")`
 -   **Process:** Converts each PDF page to PNG images
@@ -39,7 +41,7 @@ The tool supports two parsing modes for PDF documents:
 -   **LLM usage:** Images sent to multimodal LLM (e.g., Claude with vision) for review
 -   **Benefit:** Captures text within charts, diagrams, and other visual elements
 
-**Note:** If you have DOCX or PPTX files, export them to PDF first using File > Save As > PDF in Microsoft Office.
+**Note:** If you have DOCX or PPTX files, export them to PDF first using File \> Save As \> PDF in Microsoft Office.
 
 ------------------------------------------------------------------------
 
@@ -100,26 +102,13 @@ The tool supports two parsing modes for PDF documents:
 
 ### Document Parsing
 
-The `parse_document()` function serves as the main entry point for document processing. It accepts a `mode` parameter:
-- **Text mode** (default): Returns tibble with `page_number` and `content` (text)
-- **Images mode**: Returns tibble with `page_number` and `image_path`
+The `parse_document()` function serves as the main entry point for document processing. It accepts a `mode` parameter: - **Text mode** (default): Returns tibble with `page_number` and `content` (text) - **Images mode**: Returns tibble with `page_number` and `image_path`
 
-This tibble structure makes it easy to:
-- Iterate over pages using standard dplyr operations
-- Format content for LLM prompts (e.g., "Page 1: [text]")
-- Track which page errors appear on
-- Join with error results by page_number
+This tibble structure makes it easy to: - Iterate over pages using standard dplyr operations - Format content for LLM prompts (e.g., "Page 1: \[text\]") - Track which page errors appear on - Join with error results by page_number
 
 ### LLM Integration
 
-Use the `ellmr` package for all LLM API interactions. The general workflow:
-1. Parse document to extract text/images by page using `parse_document()`
-2. Format each page for LLM review
-3. Send to LLM with appropriate prompt:
-   - Text mode: Standard text-only LLM
-   - Image mode: Multimodal LLM (e.g., Claude with vision)
-4. Parse LLM response into structured error table
-5. Return data frame of suggested edits
+Use the `ellmr` package for all LLM API interactions. The general workflow: 1. Parse document to extract text/images by page using `parse_document()` 2. Format each page for LLM review 3. Send to LLM with appropriate prompt: - Text mode: Standard text-only LLM - Image mode: Multimodal LLM (e.g., Claude with vision) 4. Parse LLM response into structured error table 5. Return data frame of suggested edits
 
 ------------------------------------------------------------------------
 

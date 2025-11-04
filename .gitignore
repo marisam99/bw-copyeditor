@@ -1,0 +1,5 @@
+/.quarto/
+
+# R environment files (contain API keys and secrets)
+.Renviron
+.Rprofile
