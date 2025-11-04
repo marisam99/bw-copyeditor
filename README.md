@@ -6,7 +6,8 @@ A tool that uses OpenAI's LLM models to copyedit deliverable drafts according to
 
 - **Page Preservation**: Maintains page numbers throughout the copyediting process
 - **Structured Output**: Returns results as a data frame that can be easily exported to CSV
-- **Multiple Formats**: Supports PDF, DOCX, and TXT files
+- **Two Parsing Modes**: Text extraction for publications, image conversion for slide decks
+- **PDF Only**: Simplified workflow - export DOCX/PPTX to PDF first
 - **Custom Style Guides**: Embed your organization's style guide in the system prompt
 - **Project Context**: Add project-specific context to improve relevance of suggestions
 - **Flexible Processing**: Process entire documents or specific pages
@@ -20,8 +21,10 @@ A tool that uses OpenAI's LLM models to copyedit deliverable drafts according to
 Install required R packages:
 
 ```r
-install.packages(c("httr", "jsonlite", "pdftools", "officer", "stringr"))
+install.packages(c("httr", "jsonlite", "pdftools", "stringr", "glue", "tibble"))
 ```
+
+**Note:** This tool only supports PDF files. If you have DOCX or PPTX files, export them to PDF first using File > Save As > PDF in Microsoft Office.
 
 ### Setup
 
@@ -47,11 +50,19 @@ source("R/call_openai_api.R")
 source("R/process_document.R")
 source("R/format_results.R")
 
-# Process a document
+# Process a text-heavy document (default mode)
 results <- process_document(
-  file_path = "path/to/document.pdf",
+  file_path = "path/to/report.pdf",
   project_context = "Annual report for Client X",
   model = "gpt-4"
+)
+
+# Process a slide deck with images
+slides_results <- process_document(
+  file_path = "path/to/presentation.pdf",
+  mode = "images",
+  project_context = "Q4 presentation",
+  model = "gpt-4-vision"
 )
 
 # View results
@@ -65,14 +76,17 @@ write.csv(results, "copyedit_results.csv", row.names = FALSE)
 
 The tool is built with a modular architecture consisting of six main functions:
 
-### 1. `parse_document(file_path)`
-Extracts text content from documents while preserving page number metadata.
-- **Input**: Path to PDF, DOCX, or TXT file
-- **Output**: List with page text and metadata
+### 1. `parse_document(file_path, mode = "text")`
+Extracts content from PDF documents with two parsing modes.
+- **Input**: Path to PDF file
+- **Parameters**:
+  - `mode = "text"` (default): Extract text by page for publications
+  - `mode = "images"`: Convert pages to images for slide decks
+- **Output**: Tibble with `page_number` and either `content` (text) or `image_path` (images)
 - **Features**:
-  - Native page extraction for PDFs
-  - Smart page estimation for DOCX and TXT files
-  - Character and line counts per page
+  - Accurate page boundaries from PDF structure
+  - Text mode for standard copyediting
+  - Image mode for multimodal LLM review of visual content
 
 ### 2. `build_prompt(text_chunk, page_num, project_context, system_prompt)`
 Constructs the messages array for OpenAI API requests.
