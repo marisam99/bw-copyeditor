@@ -1,0 +1,20 @@
+Package: bwcopyeditor
+Type: Package
+Title: Bellwether Copyeditor - LLM-Powered Copyediting Tool
+Version: 0.1.0
+Description: A tool that uses OpenAI's LLM models to copyedit deliverable
+    drafts according to project context and Bellwether style conventions.
+    Preserves page numbers and returns structured output that can be
+    coerced to a table or CSV.
+Depends: R (>= 4.0.0)
+Imports:
+    httr,
+    jsonlite,
+    pdftools,
+    stringr,
+    officer
+Suggests:
+    testthat
+License: MIT
+Encoding: UTF-8
+LazyData: true
