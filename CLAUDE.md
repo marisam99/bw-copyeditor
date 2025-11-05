@@ -51,7 +51,7 @@ The tool supports two parsing modes for PDF documents:
 
 -   **`pdftools`** - For extracting text and converting PDFs to images
 -   **`tidyverse`** - Use tidyverse functions wherever applicable (dplyr, tidyr, purrr, etc.)
--   **`ellmr`** - For making LLM API calls
+-   **`ellmer`** - For making LLM API calls
 -   **`glue`** - For string formatting
 -   **`tibble`** - For data frame structures
 
@@ -108,7 +108,7 @@ This tibble structure makes it easy to: - Iterate over pages using standard dply
 
 ### LLM Integration
 
-Use the `ellmr` package for all LLM API interactions. The general workflow: 1. Parse document to extract text/images by page using `parse_document()` 2. Format each page for LLM review 3. Send to LLM with appropriate prompt: - Text mode: Standard text-only LLM - Image mode: Multimodal LLM (e.g., Claude with vision) 4. Parse LLM response into structured error table 5. Return data frame of suggested edits
+Use the `ellmer` package for all LLM API interactions. The general workflow: 1. Parse document to extract text/images by page using `parse_document()` 2. Format each page for LLM review 3. Send to LLM with appropriate prompt: - Text mode: Standard text-only LLM - Image mode: Multimodal LLM (e.g., Claude with vision) 4. Parse LLM response into structured error table 5. Return data frame of suggested edits
 
 ------------------------------------------------------------------------
 
