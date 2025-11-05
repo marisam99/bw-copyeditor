@@ -137,8 +137,8 @@ call_openai_api <- function(user_message,
 #' the ellmer package and returns the parsed response. For text-only documents,
 #' use call_openai_api() instead.
 #'
-#' @param user_content List. The multimodal content array from build_prompt_images().
-#'   This should be a list of content objects with type "text" or "image_url".
+#' @param user_content List. The ellmer-formatted content from build_prompt_images().
+#'   This should be a list of ellmer content objects (strings and content_image_file).
 #' @param system_prompt Character. The system prompt with copyediting instructions.
 #'   If NULL, loads from config/llm_instructions.txt.
 #' @param model Character. Vision-capable OpenAI model to use (default: "gpt-4o").
@@ -160,18 +160,19 @@ call_openai_api <- function(user_message,
 #' @details
 #' This function is designed for documents parsed in image mode (slide decks,
 #' presentations, or documents with visual elements like charts/diagrams).
-#' Each page is sent as a base64-encoded PNG image. This is significantly more
-#' expensive than text mode - use only when visual elements matter.
+#' Images are handled by ellmer's content_image_file() helper. This is significantly
+#' more expensive than text mode - use only when visual elements matter.
 #'
 #' The user_content parameter should be a list-column from build_prompt_images()
-#' containing multimodal content with both text and image_url objects.
+#' containing ellmer-formatted content (plain strings for text, content_image_file
+#' objects for images).
 #'
 #' @examples
 #' \dontrun{
 #'   # Parse document as images
 #'   slides <- parse_document(mode = "images")
 #'
-#'   # Build multimodal prompt
+#'   # Build multimodal prompt (returns ellmer format)
 #'   prompts <- build_prompt_images(
 #'     slides,
 #'     "external client-facing",
@@ -220,7 +221,7 @@ call_openai_api_images <- function(user_content,
 
   # Validate inputs
   if (!is.list(user_content) || length(user_content) == 0) {
-    stop("user_content must be a non-empty list of content objects from build_prompt_images()")
+    stop("user_content must be a non-empty list of ellmer content objects from build_prompt_images()")
   }
 
   if (temperature < 0 || temperature > 2) {
@@ -235,9 +236,6 @@ call_openai_api_images <- function(user_content,
       model, paste(vision_models, collapse = ", ")
     ))
   }
-
-  # Convert user_content to ellmer format
-  ellmer_content <- convert_content_to_ellmer(user_content)
 
   # Create chat session with retry logic
   attempt <- 1
@@ -258,7 +256,8 @@ call_openai_api_images <- function(user_content,
       )
 
       # Send multimodal message and get response
-      response <- do.call(chat$chat, ellmer_content)
+      # user_content is already in ellmer format (strings + content_image_file objects)
+      response <- do.call(chat$chat, user_content)
 
       # Parse the JSON response
       result <- parse_json_response(response, model, chat)
@@ -286,40 +285,6 @@ call_openai_api_images <- function(user_content,
 
   # If we get here, all retries failed
   stop(sprintf("API request failed after %d attempts: %s", max_retries, last_error$message))
-}
-
-
-#' Convert Content to ellmer Format
-#'
-#' Converts the multimodal content array from build_prompt_images() to ellmer format.
-#' Text objects remain as strings, image_url objects are converted to content_image_url().
-#'
-#' @param user_content List. Content array with type "text" or "image_url".
-#'
-#' @return List of arguments to pass to chat$chat().
-#' @keywords internal
-convert_content_to_ellmer <- function(user_content) {
-
-  ellmer_content <- list()
-
-  for (item in user_content) {
-    if (item$type == "text") {
-      # Add text as plain string
-      ellmer_content[[length(ellmer_content) + 1]] <- item$text
-
-    } else if (item$type == "image_url") {
-      # Convert image_url to ellmer's content_image_url()
-      image_url <- item$image_url$url
-
-      # ellmer's content_image_url() handles data URLs automatically
-      ellmer_content[[length(ellmer_content) + 1]] <- ellmer::content_image_url(
-        url = image_url,
-        detail = item$image_url$detail %||% "high"  # Default to "high" if not specified
-      )
-    }
-  }
-
-  return(ellmer_content)
 }
 
 

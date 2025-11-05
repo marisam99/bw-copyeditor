@@ -2,7 +2,7 @@
 # Title:        Image Prompt Builder
 # Last Updated: 2025-11-05
 # Description:  Functions to build user message for multimodal LLM from parsed image document.
-#               Converts PDF pages to base64-encoded images for vision-capable models.
+#               Uses ellmer package to format images for vision-capable models.
 #               Handles automatic chunking for large documents that would exceed token/payload limits.
 #               Uses fixed token estimates for image processing costs.
 # ==============================================================================
@@ -30,40 +30,6 @@ context_header <- function(deliverable_type, audience) {
 }
 
 
-#' Encode Image to Base64 Data URL
-#'
-#' Reads a PNG image file and converts it to a base64-encoded data URL
-#' suitable for multimodal API requests.
-#'
-#' @param image_path Character. Path to PNG image file.
-#'
-#' @return Character string with data URL format: "data:image/png;base64,..."
-#' @keywords internal
-encode_image <- function(image_path) {
-  # Check file exists
-  if (!file.exists(image_path)) {
-    stop(glue::glue("Image file not found: {image_path}"))
-  }
-
-  # Check it's a PNG file
-  if (tolower(tools::file_ext(image_path)) != "png") {
-    warning(glue::glue("Expected PNG file, got: {tools::file_ext(image_path)}"))
-  }
-
-  # Read the entire file as raw bytes
-  image_size <- file.info(image_path)$size
-  raw_bytes <- readBin(image_path, "raw", n = image_size)
-
-  # Encode to base64 text
-  base64_string <- base64enc::base64encode(raw_bytes)
-
-  # Create data URL (format required by OpenAI Vision API)
-  data_url <- paste0("data:image/png;base64,", base64_string)
-
-  return(data_url)
-}
-
-
 #' Estimate Token Count for Image
 #'
 #' Returns the estimated token cost for processing an image with OpenAI's vision models.
@@ -88,10 +54,10 @@ estimate_image_tokens <- function(detail = "high") {
 }
 
 
-#' Build Multimodal Content Array
+#' Build Multimodal Content Array (ellmer Format)
 #'
-#' Constructs the multimodal content structure for API requests, combining
-#' text context with base64-encoded images.
+#' Constructs the multimodal content structure using ellmer's helper functions,
+#' combining text context with images.
 #'
 #' @param parsed_document Tibble. Output from parse_document(mode = "images") with
 #'   columns page_number and image_path.
@@ -99,9 +65,14 @@ estimate_image_tokens <- function(detail = "high") {
 #' @param audience Character. Target audience description.
 #' @param detail Character. Image detail level: "high" or "low" (default: "high").
 #'
-#' @return List with multimodal content structure suitable for OpenAI Vision API.
+#' @return List of ellmer content objects (strings and content_image_file objects).
 #' @keywords internal
 build_multimodal_content <- function(parsed_document, deliverable_type, audience, detail = "high") {
+
+  # Load required package
+  if (!requireNamespace("ellmer", quietly = TRUE)) {
+    stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
+  }
 
   # Start with text context
   header <- context_header(deliverable_type, audience)
@@ -112,30 +83,22 @@ build_multimodal_content <- function(parsed_document, deliverable_type, audience
     "Please review each page for errors according to the instructions provided."
   )
 
-  # Initialize content array with intro text
-  content <- list(
-    list(type = "text", text = intro_text)
-  )
+  # Initialize content array with intro text (plain string in ellmer format)
+  content <- list(intro_text)
 
   # Add each page as an image
   for (i in seq_len(nrow(parsed_document))) {
     page_num <- parsed_document$page_number[i]
     image_path <- parsed_document$image_path[i]
 
-    # Add page label
-    content[[length(content) + 1]] <- list(
-      type = "text",
-      text = glue::glue("\nPage {page_num}:")
-    )
+    # Add page label (plain string)
+    content[[length(content) + 1]] <- glue::glue("\nPage {page_num}:")
 
-    # Encode and add image
-    data_url <- encode_image(image_path)
-    content[[length(content) + 1]] <- list(
-      type = "image_url",
-      image_url = list(
-        url = data_url,
-        detail = detail
-      )
+    # Add image using ellmer's helper function
+    # ellmer::content_image_file() handles encoding automatically
+    content[[length(content) + 1]] <- ellmer::content_image_file(
+      path = image_path,
+      detail = detail
     )
   }
 
@@ -233,8 +196,8 @@ chunk_by_images <- function(parsed_document,
 #' Build Prompt for Multimodal API (Images)
 #'
 #' Constructs user messages for vision-capable LLM API requests with automatic chunking.
-#' Takes a parsed document with images and formats it with deliverable type and audience
-#' information. Images are base64-encoded and embedded as data URLs.
+#' Takes a parsed document with images and formats it using ellmer's multimodal content
+#' helpers, combining deliverable type and audience information with images.
 #'
 #' @param parsed_document Tibble. Output from parse_document(mode = "images") with
 #'   columns page_number and image_path.
@@ -252,19 +215,20 @@ chunk_by_images <- function(parsed_document,
 #'   \item{chunk_id}{Integer. Sequential chunk identifier}
 #'   \item{page_start}{Integer. First page number in chunk}
 #'   \item{page_end}{Integer. Last page number in chunk}
-#'   \item{user_message}{List. Multimodal content structure with text and encoded images}
+#'   \item{user_message}{List. ellmer-formatted content (strings and content_image_file objects)}
 #'
 #' @details
 #' The function automatically chunks documents to stay within token and payload limits.
-#' Each chunk contains up to `images_per_chunk` pages, with each image base64-encoded
-#' and embedded as a data URL.
+#' Each chunk contains up to `images_per_chunk` pages, with images formatted using
+#' ellmer::content_image_file() which handles encoding automatically.
 #'
 #' Token costs per image (approximate):
 #' - "high" detail: ~2,805 tokens (better for reading text, recommended for copyediting)
 #' - "low" detail: ~85 tokens (may miss small text)
 #'
-#' The returned user_message is a list-column containing the multimodal content structure.
-#' This differs from text mode where user_message is a character string.
+#' The returned user_message is a list-column containing ellmer content objects (plain
+#' strings for text, content_image_file objects for images). This differs from text mode
+#' where user_message is a character string.
 #'
 #' IMPORTANT: Image mode is more expensive and slower than text mode.
 #' Use image mode only for documents where visual elements matter (e.g., slide decks,
@@ -320,9 +284,9 @@ build_prompt_images <- function(parsed_document,
     stop("detail must be 'high' or 'low'")
   }
 
-  # Validate base64enc package is available
-  if (!requireNamespace("base64enc", quietly = TRUE)) {
-    stop("Package 'base64enc' is required. Install with: install.packages('base64enc')")
+  # Validate ellmer package is available
+  if (!requireNamespace("ellmer", quietly = TRUE)) {
+    stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
   }
 
   # Estimate total tokens
