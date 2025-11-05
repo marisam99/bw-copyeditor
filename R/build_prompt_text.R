@@ -7,6 +7,12 @@
 #               Uses rtiktoken for accurate token counting matching OpenAI's tokenizers.
 # ==============================================================================
 
+# Configuration ---------------------------------------------------------------
+# Adjust these constants to change model settings and behavior
+
+CONTEXT_WINDOW <- 400000        # Maximum tokens per request (400k for gpt-4)
+MODEL <- "gpt-4"                # Model name per OpenAPI API documentation, for tokenization
+
 # Helper Functions ------------------------------------------------------------
 
 #' Project Context Header
@@ -122,7 +128,7 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 
     # If this page alone is too large, warn but include it anyway
     if (page_tokens > available_tokens && length(current_chunk_pages) == 0) {
-      warning(sprintf("Page %d exceeds token limit but will be included as a single chunk", page_num))
+      warning(glue::glue("Page {page_num} exceeds token limit but will be included as a single chunk"))
     }
 
     # Start new chunk if needed
@@ -193,19 +199,17 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 
 # Main Function ---------------------------------------------------------------
 
-#' Build Prompt for OpenAI API
+#' Build Prompt for Text-based API
 #'
-#' Constructs user messages for OpenAI API requests with automatic chunking if the
+#' Constructs user messages for LLM API requests with automatic chunking if the
 #' document exceeds the context window limit. Takes a parsed document and formats it
 #' with deliverable type and audience information.
 #'
-#' @param parsed_document Tibble. Output from parse_document() with columns
+#' @param parsed_document Tibble. Output from parse_document(mode = "text") with columns
 #'   page_number and content.
 #' @param deliverable_type Character. Type of deliverable (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param context_window Integer. Maximum tokens per request (default: 400000).
-#' @param model Character. Model name for accurate tokenization (default: "gpt-4").
 #'
 #' @return Tibble with columns:
 #'   \item{chunk_id}{Integer. Sequential chunk identifier}
@@ -215,12 +219,15 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #'
 #' @details
 #' The function first attempts to fit the entire document in a single message.
-#' If the token count exceeds 90% of the context_window, the document
+#' If the token count exceeds 90% of the context window, the document
 #' is automatically split into multiple chunks, with each chunk staying within
 #' the token limit. Pages are never split mid-page.
 #'
 #' Token counting uses the rtiktoken package for exact token counts
 #' matching the specified model's tokenizer.
+#'
+#' Model settings (context window and model name) are configured as constants
+#' at the top of this script and can be adjusted there as needed.
 #'
 #' The returned user_message does NOT include the system prompt - that should be
 #' added separately by the caller.
@@ -228,7 +235,7 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #' @examples
 #' \dontrun{
 #'   # Build prompt(s) from parsed document - may return single or multiple chunks
-#'   prompts <- build_prompt(
+#'   prompts <- build_prompt_text(
 #'     parsed_document = parsed_doc,
 #'     deliverable_type = "external client-facing",
 #'     audience = "Healthcare executives"
@@ -242,11 +249,13 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #' }
 #'
 #' @export
-build_prompt <- function(parsed_document,
+build_prompt_text <- function(parsed_document,
                         deliverable_type,
-                        audience,
-                        context_window = 400000,
-                        model = "gpt-4") {
+                        audience) {
+
+  # Use constants defined at top of script
+  context_window <- CONTEXT_WINDOW
+  model <- MODEL
 
   # Validate inputs
   if (missing(parsed_document) || !inherits(parsed_document, "data.frame")) {
@@ -265,6 +274,11 @@ build_prompt <- function(parsed_document,
     stop("audience cannot be empty")
   }
 
+  # Validate rtiktoken package is available
+  if (!requireNamespace("rtiktoken", quietly = TRUE)) {
+    stop("Package 'rtiktoken' is required. Install with: install.packages('rtiktoken')")
+  }
+
   # Build header and format all pages
   header <- context_header(deliverable_type, audience)
   all_pages <- combine_pages(parsed_document)
@@ -279,7 +293,7 @@ build_prompt <- function(parsed_document,
   safety_limit <- floor(context_window * 0.9)
 
   # Inform user of token count
-  message(sprintf("Total tokens in document: %d (limit: %d)", total_tokens, safety_limit))
+  message(glue::glue("Total tokens in document: {format(total_tokens, big.mark = ',')} (limit: {format(safety_limit, big.mark = ',')})"))
 
   # Check if we need to chunk
   if (total_tokens <= safety_limit) {
@@ -294,9 +308,8 @@ build_prompt <- function(parsed_document,
     )
   } else {
     # Need to chunk the document
-    message(sprintf(
-      "Document exceeds token limit (%d > %d). Splitting into chunks...",
-      total_tokens, safety_limit
+    message(glue::glue(
+      "Document exceeds token limit ({format(total_tokens, big.mark = ',')} > {format(safety_limit, big.mark = ',')}). Splitting into chunks..."
     ))
 
     result <- chunk_document(
@@ -307,8 +320,19 @@ build_prompt <- function(parsed_document,
       model = model
     )
 
-    message(sprintf("Document split into %d chunk(s)", nrow(result)))
+    message(glue::glue("Document split into {nrow(result)} chunk(s)"))
   }
+
+  # Estimate total cost (rough)
+  # Cost per 1M tokens for gpt-4 (approximate - may vary by model version)
+  cost_per_1m <- 30.00  # gpt-4 input cost (approximate)
+  estimated_cost <- (total_tokens / 1000000) * cost_per_1m
+
+  message(glue::glue(
+    "\nEstimated cost: ${format(estimated_cost, digits = 2)} ",
+    "(based on ~{format(total_tokens, big.mark = ',')} input tokens for {model})"
+  ))
+  message("Note: Actual cost may vary based on response length and current API pricing.\n")
 
   return(result)
 }

@@ -31,12 +31,15 @@ parse_to_text <- function(file_path) {
 #' @keywords internal
 parse_to_images <- function(file_path) {
   # Convert PDF pages to PNG images in temp directory
-  image_paths <- pdftools::pdf_convert(
-    pdf = file_path,
-    format = "png",
-    dpi = 150,
-    filenames = file.path(tempdir(), "page_%d.png"),
-    verbose = TRUE
+  # Suppress warning from pdftools internal sprintf call
+  image_paths <- suppressWarnings(
+    pdftools::pdf_convert(
+      pdf = file_path,
+      format = "png",
+      dpi = 150,
+      filenames = file.path(tempdir(), "page_%d.png"),
+      verbose = TRUE
+    )
   )
 
   # Return tibble with page numbers and image paths

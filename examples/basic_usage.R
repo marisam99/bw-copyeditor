@@ -29,7 +29,8 @@ Sys.setenv(OPENAI_API_KEY = "sk-your-api-key-here")
 # Process a document with minimal configuration
 results <- process_document(
   file_path = "path/to/your/document.pdf",
-  project_context = "Annual report for Client X",
+  document_type = "external client-facing",
+  audience = "Healthcare executives and stakeholders",
   model = "gpt-4"
 )
 
@@ -79,7 +80,8 @@ print(page_1_5_high_conf)
 # Process only pages 1-3
 results_partial <- process_document(
   file_path = "path/to/your/document.pdf",
-  project_context = "Annual report",
+  document_type = "internal",
+  audience = "Data science team",
   process_pages = c(1, 2, 3)
 )
 

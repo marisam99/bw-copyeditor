@@ -1,21 +1,54 @@
+#' Get Default System Prompt
+#'
+#' Returns the default system prompt with instructions for copyediting.
+#'
+#' @return Character string with default system prompt.
+#' @keywords internal
+get_default_system_prompt <- function() {
+
+  prompt <- "You are a professional copyeditor. Review the provided text and identify issues related to:
+- Grammar and punctuation
+- Style and clarity
+- Consistency
+- Spelling and typos
+
+Return your findings as a JSON array where each object has the following structure:
+{
+  \"page_number\": <integer>,
+  \"location\": \"<brief description of where the issue occurs>\",
+  \"original_text\": \"<the problematic text>\",
+  \"suggested_edit\": \"<your proposed correction>\",
+  \"edit_type\": \"<one of: grammar, style, clarity, consistency, spelling>\",
+  \"reason\": \"<brief explanation of why this edit is needed>\",
+  \"severity\": \"<one of: critical, recommended, optional>\",
+  \"confidence\": <number between 0 and 1>
+}
+
+IMPORTANT: Return ONLY the JSON array, with no additional text before or after. If there are no issues, return an empty array: []"
+
+  return(prompt)
+}
+
+
 #' Process Document for Copyediting
 #'
 #' Main orchestrator function that processes an entire document through the
-#' copyediting pipeline. Parses the document, sends each page to OpenAI API,
-#' and returns a structured data frame of suggestions.
+#' copyediting pipeline. Parses the document, builds prompts with automatic
+#' chunking if needed, sends to OpenAI API, and returns a structured data frame.
 #'
-#' @param file_path Character. Path to the document file (PDF, DOCX, or TXT).
-#' @param project_context Character. Project-specific context or background (default: "").
-#' @param system_prompt Character. System prompt with style guide embedded.
-#'   If NULL, loads from default location or uses built-in default.
+#' @param file_path Character. Path to the document file (PDF only).
+#' @param document_type Character. Type of document (e.g., "external field-facing",
+#'   "external client-facing", "internal").
+#' @param audience Character. Description of the target audience.
 #' @param api_key Character. OpenAI API key. If NULL, reads from OPENAI_API_KEY
 #'   environment variable.
 #' @param model Character. OpenAI model to use (default: "gpt-4").
 #' @param temperature Numeric. Sampling temperature (default: 0.3).
+#' @param context_window Integer. Maximum tokens per API call (default: 400000).
 #' @param process_pages Integer vector. Specific pages to process. If NULL,
 #'   processes all pages (default: NULL).
 #' @param verbose Logical. Print progress messages (default: TRUE).
-#' @param delay_between_pages Numeric. Delay in seconds between API calls to
+#' @param delay_between_chunks Numeric. Delay in seconds between API calls to
 #'   avoid rate limits (default: 1).
 #'
 #' @return A data frame with columns:
@@ -33,15 +66,17 @@
 #'   # Process entire document
 #'   results <- process_document(
 #'     file_path = "report.pdf",
-#'     project_context = "Annual healthcare report for Client X",
+#'     document_type = "external client-facing",
+#'     audience = "Healthcare executives",
 #'     api_key = Sys.getenv("OPENAI_API_KEY")
 #'   )
 #'
 #'   # Process specific pages only
 #'   results <- process_document(
 #'     file_path = "report.pdf",
-#'     process_pages = c(1, 2, 5),
-#'     project_context = "Annual report"
+#'     document_type = "internal",
+#'     audience = "Data science team",
+#'     process_pages = c(1, 2, 5)
 #'   )
 #'
 #'   # Export to CSV
@@ -50,90 +85,108 @@
 #'
 #' @export
 process_document <- function(file_path,
-                             project_context = "",
-                             system_prompt = NULL,
+                             document_type,
+                             audience,
                              api_key = NULL,
                              model = "gpt-4",
                              temperature = 0.3,
+                             context_window = 400000,
                              process_pages = NULL,
                              verbose = TRUE,
-                             delay_between_pages = 1) {
+                             delay_between_chunks = 1) {
 
-  # Validate file path
+  # Validate inputs
   if (!file.exists(file_path)) {
     stop(sprintf("File not found: %s", file_path))
+  }
+
+  if (missing(document_type) || is.null(document_type) || nchar(trimws(document_type)) == 0) {
+    stop("document_type is required")
+  }
+
+  if (missing(audience) || is.null(audience) || nchar(trimws(audience)) == 0) {
+    stop("audience is required")
   }
 
   if (verbose) {
     cat(sprintf("\n=== Bellwether Copyeditor ===\n"))
     cat(sprintf("Processing: %s\n", basename(file_path)))
+    cat(sprintf("Document type: %s\n", document_type))
+    cat(sprintf("Audience: %s\n", audience))
   }
 
   # Parse document
-  if (verbose) cat("Parsing document...\n")
-  doc <- parse_document(file_path)
+  if (verbose) cat("\nParsing document...\n")
+  parsed_doc <- parse_document(file_path, mode = "text")
 
+  total_pages <- nrow(parsed_doc)
   if (verbose) {
-    cat(sprintf("Document parsed: %d pages\n", doc$total_pages))
+    cat(sprintf("Document parsed: %d pages\n", total_pages))
   }
 
-  # Determine which pages to process
-  if (is.null(process_pages)) {
-    pages_to_process <- seq_len(doc$total_pages)
-  } else {
-    pages_to_process <- process_pages[process_pages <= doc$total_pages]
-    if (length(pages_to_process) == 0) {
+  # Filter pages if specified
+  if (!is.null(process_pages)) {
+    valid_pages <- process_pages[process_pages <= total_pages & process_pages > 0]
+    if (length(valid_pages) == 0) {
       stop("No valid pages to process")
     }
-  }
 
-  if (verbose) {
-    cat(sprintf("Processing %d page(s): %s\n",
-                length(pages_to_process),
-                paste(pages_to_process, collapse = ", ")))
-  }
+    parsed_doc <- parsed_doc[parsed_doc$page_number %in% valid_pages, ]
 
-  # Load system prompt if not provided
-  if (is.null(system_prompt)) {
-    # Try to load from config directory
-    config_path <- file.path("config", "system_prompt.txt")
-    if (file.exists(config_path)) {
-      if (verbose) cat("Loading system prompt from config/system_prompt.txt\n")
-      system_prompt <- load_system_prompt(config_path)
-    } else {
-      if (verbose) cat("Using default system prompt\n")
-      # Will use default in build_prompt()
+    if (verbose) {
+      cat(sprintf("Processing %d page(s): %s\n",
+                  nrow(parsed_doc),
+                  paste(sort(parsed_doc$page_number), collapse = ", ")))
     }
+  } else {
+    if (verbose) {
+      cat(sprintf("Processing all %d pages\n", total_pages))
+    }
+  }
+
+  # Load system prompt
+  system_prompt_path <- file.path("config", "system_prompt_template.txt")
+  if (file.exists(system_prompt_path)) {
+    if (verbose) cat("Loading system prompt from config/system_prompt_template.txt\n")
+    system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
+  } else {
+    if (verbose) cat("Using default system prompt\n")
+    system_prompt <- get_default_system_prompt()
+  }
+
+  # Build user messages (with automatic chunking if needed)
+  if (verbose) cat("Building user messages...\n")
+  user_message_chunks <- build_prompt(
+    parsed_document = parsed_doc,
+    document_type = document_type,
+    audience = audience,
+    context_window = context_window,
+    model = model
+  )
+
+  num_chunks <- nrow(user_message_chunks)
+  if (verbose && num_chunks > 1) {
+    cat(sprintf("Document split into %d chunks\n", num_chunks))
   }
 
   # Initialize results list
   all_suggestions <- list()
   api_metadata <- list()
 
-  # Process each page
-  for (i in seq_along(pages_to_process)) {
-    page_idx <- pages_to_process[i]
+  # Process each chunk
+  for (i in seq_len(num_chunks)) {
+    chunk <- user_message_chunks[i, ]
 
     if (verbose) {
-      cat(sprintf("\n[%d/%d] Processing page %d...",
-                  i, length(pages_to_process), page_idx))
+      cat(sprintf("\n[Chunk %d/%d] Pages %d-%d...",
+                  i, num_chunks,
+                  chunk$page_start, chunk$page_end))
     }
 
-    # Get page text
-    page_text <- doc$pages[[page_idx]]
-
-    # Skip empty pages
-    if (is.null(page_text) || nchar(trimws(page_text)) == 0) {
-      if (verbose) cat(" (empty, skipping)\n")
-      next
-    }
-
-    # Build prompt
-    messages <- build_prompt(
-      text_chunk = page_text,
-      page_num = page_idx,
-      project_context = project_context,
-      system_prompt = system_prompt
+    # Construct messages array with system prompt and user message
+    messages <- list(
+      list(role = "system", content = system_prompt),
+      list(role = "user", content = chunk$user_message)
     )
 
     # Call API
@@ -157,20 +210,23 @@ process_document <- function(file_path,
 
       # Store metadata
       api_metadata[[length(api_metadata) + 1]] <- list(
-        page = page_idx,
+        chunk_id = chunk$chunk_id,
+        page_start = chunk$page_start,
+        page_end = chunk$page_end,
         usage = result$usage
       )
 
     }, error = function(e) {
       if (verbose) {
-        cat(sprintf("\nError processing page %d: %s\n", page_idx, e$message))
+        cat(sprintf("\nError processing chunk %d: %s\n", i, e$message))
       }
-      warning(sprintf("Failed to process page %d: %s", page_idx, e$message))
+      warning(sprintf("Failed to process chunk %d (pages %d-%d): %s",
+                     i, chunk$page_start, chunk$page_end, e$message))
     })
 
     # Add delay between requests to avoid rate limits
-    if (i < length(pages_to_process) && delay_between_pages > 0) {
-      Sys.sleep(delay_between_pages)
+    if (i < num_chunks && delay_between_chunks > 0) {
+      Sys.sleep(delay_between_chunks)
     }
   }
 
@@ -184,7 +240,10 @@ process_document <- function(file_path,
 
   # Add metadata as attributes
   attr(results_df, "document_path") <- file_path
-  attr(results_df, "pages_processed") <- pages_to_process
+  attr(results_df, "document_type") <- document_type
+  attr(results_df, "audience") <- audience
+  attr(results_df, "pages_processed") <- if (!is.null(process_pages)) process_pages else seq_len(total_pages)
+  attr(results_df, "num_chunks") <- num_chunks
   attr(results_df, "model") <- model
   attr(results_df, "api_metadata") <- api_metadata
   attr(results_df, "processed_at") <- Sys.time()
@@ -273,7 +332,10 @@ export_results <- function(results_df, output_path, include_metadata = TRUE) {
     # Create metadata data frame
     metadata <- data.frame(
       document_path = attr(results_df, "document_path"),
+      document_type = attr(results_df, "document_type") %||% NA,
+      audience = attr(results_df, "audience") %||% NA,
       pages_processed = paste(attr(results_df, "pages_processed"), collapse = ", "),
+      num_chunks = attr(results_df, "num_chunks") %||% 1,
       model = attr(results_df, "model"),
       total_suggestions = nrow(results_df),
       processed_at = as.character(attr(results_df, "processed_at")),
