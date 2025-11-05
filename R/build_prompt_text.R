@@ -1,9 +1,10 @@
 # ==============================================================================
 # Title:        Prompt Builder
-# Last Updated: 2025-11-04
+# Last Updated: 2025-11-05
 # Description:  Functions to build user message for LLM prompt from parsed text document.
 #               Combines document content with project context (deliverable type, audience).
 #               Handles automatic chunking for large documents that would exceed token limits.
+#               Uses rtiktoken for accurate token counting matching OpenAI's tokenizers.
 # ==============================================================================
 
 # Helper Functions ------------------------------------------------------------
@@ -55,19 +56,19 @@ combine_pages <- function(parsed_document) {
 
 #' Estimate Token Count
 #'
-#' Estimates the number of tokens in a text string using a conservative
-#' character-to-token ratio.
+#' Counts tokens in a text string using the rtiktoken package.
+#' This provides exact token counts matching what OpenAI's API will use.
 #'
-#' @param text Character. Text to estimate tokens for.
+#' @param text Character. Text to count tokens for.
+#' @param model Character. Model name to determine which tokenizer to use
+#'   (default: "gpt-4").
 #'
-#' @return Integer. Estimated token count.
+#' @return Integer. Exact token count.
 #' @keywords internal
-estimate_tokens <- function(text) {
-  # Use conservative ratio: 1 token ≈ 3.5 characters
-  # This works reasonably well for English text
-  char_count <- nchar(text)
-  token_estimate <- ceiling(char_count / 3.5)
-  return(token_estimate)
+estimate_tokens <- function(text, model = "gpt-4") {
+  # Count tokens using rtiktoken
+  token_count <- rtiktoken::get_token_count(text, model = model)
+  return(token_count)
 }
 
 
@@ -81,13 +82,14 @@ estimate_tokens <- function(text) {
 #' @param deliverable_type Character. Type of deliverable.
 #' @param audience Character. Target audience description.
 #' @param token_limit Integer. Maximum tokens per chunk (uses 90% for safety).
+#' @param model Character. Model name for tokenization (default: "gpt-4").
 #'
 #' @return Tibble with columns: chunk_id, page_start, page_end, user_message.
 #' @keywords internal
-chunk_document <- function(parsed_document, deliverable_type, audience, token_limit) {
+chunk_document <- function(parsed_document, deliverable_type, audience, token_limit, model = "gpt-4") {
   # Create document header (same for all chunks)
   header <- context_header(deliverable_type, audience)
-  header_tokens <- estimate_tokens(header)
+  header_tokens <- estimate_tokens(header, model = model)
 
   # Calculate safety limit (90% of token_limit)
   safety_limit <- floor(token_limit * 0.9)
@@ -113,7 +115,7 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 
     # Format the page and estimate its tokens
     formatted_page <- paste0("page ", page_num, ":\n", page_content)
-    page_tokens <- estimate_tokens(formatted_page)
+    page_tokens <- estimate_tokens(formatted_page, model = model)
 
     # Check if adding this page would exceed the limit
     potential_tokens <- current_chunk_tokens + page_tokens
@@ -167,13 +169,13 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
     )
 
     formatted_pages <- combine_pages(chunk_data)
-    contents <- paste0(header, "\n\nFile:\n\n", formatted_pages)
+    user_message <- paste0(header, "\n\nFile:\n\n", formatted_pages)
 
     chunks[[length(chunks) + 1]] <- list(
       chunk_id = chunk_id,
       page_start = page_start,
       page_end = current_chunk_pages[[length(current_chunk_pages)]]$page_number,
-      user_message = contents
+      user_message = user_message
     )
   }
 
@@ -203,6 +205,7 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
 #' @param context_window Integer. Maximum tokens per request (default: 400000).
+#' @param model Character. Model name for accurate tokenization (default: "gpt-4").
 #'
 #' @return Tibble with columns:
 #'   \item{chunk_id}{Integer. Sequential chunk identifier}
@@ -212,11 +215,12 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #'
 #' @details
 #' The function first attempts to fit the entire document in a single message.
-#' If the estimated token count exceeds 90% of the context_window, the document
+#' If the token count exceeds 90% of the context_window, the document
 #' is automatically split into multiple chunks, with each chunk staying within
 #' the token limit. Pages are never split mid-page.
 #'
-#' Token estimation uses a conservative ratio of 1 token ≈ 3.5 characters.
+#' Token counting uses the rtiktoken package for exact token counts
+#' matching the specified model's tokenizer.
 #'
 #' The returned user_message does NOT include the system prompt - that should be
 #' added separately by the caller.
@@ -234,13 +238,15 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #'   nrow(prompts)  # 1 = single chunk, >1 = multiple chunks
 #'
 #'   # Access the user message for first chunk
+#'   prompts$user_message[1]
 #' }
 #'
 #' @export
 build_prompt <- function(parsed_document,
                         deliverable_type,
                         audience,
-                        context_window = 400000) {
+                        context_window = 400000,
+                        model = "gpt-4") {
 
   # Validate inputs
   if (missing(parsed_document) || !inherits(parsed_document, "data.frame")) {
@@ -266,17 +272,26 @@ build_prompt <- function(parsed_document,
   system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
 
   # Construct full inputs
-  all_inputs <- paste0(system_prompt, header, "\n\nFile:\n\n", all_pages)
+  all_inputs <- paste0(system_prompt, "\n\n", header, "\n\nFile:\n\n", all_pages)
 
-  # Estimate total tokens
-  total_tokens <- estimate_tokens(all_inputs)
+  # Count total tokens
+  total_tokens <- estimate_tokens(all_inputs, model = model)
   safety_limit <- floor(context_window * 0.9)
+
+  # Inform user of token count
+  message(sprintf("Total tokens in document: %d (limit: %d)", total_tokens, safety_limit))
 
   # Check if we need to chunk
   if (total_tokens <= safety_limit) {
+    message("Document fits in single chunk - no splitting needed")
     # Fits in single message
-    user_message = paste0(header, "\n\nFile:\n\n", all_pages)
-    result <- user_message
+    user_message <- paste0(header, "\n\nFile:\n\n", all_pages)
+    result <- tibble::tibble(
+      chunk_id = 1L,
+      page_start = min(parsed_document$page_number),
+      page_end = max(parsed_document$page_number),
+      user_message = user_message
+    )
   } else {
     # Need to chunk the document
     message(sprintf(
@@ -288,7 +303,8 @@ build_prompt <- function(parsed_document,
       parsed_document = parsed_document,
       deliverable_type = deliverable_type,
       audience = audience,
-      token_limit = context_window
+      token_limit = context_window,
+      model = model
     )
 
     message(sprintf("Document split into %d chunk(s)", nrow(result)))
