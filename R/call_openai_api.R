@@ -22,7 +22,20 @@
 #'
 #' @examples
 #' \dontrun{
-#'   messages <- build_prompt("Text to edit", 1, "Project context")
+#'   # Parse document and build user messages
+#'   parsed <- parse_document("report.pdf", mode = "text")
+#'   user_msgs <- build_prompt(parsed, "external client-facing", "Healthcare executives")
+#'
+#'   # Load system prompt
+#'   system_prompt <- paste(readLines("config/system_prompt_template.txt", warn = FALSE), collapse = "\n")
+#'
+#'   # Construct messages array
+#'   messages <- list(
+#'     list(role = "system", content = system_prompt),
+#'     list(role = "user", content = user_msgs$user_message[1])
+#'   )
+#'
+#'   # Call API
 #'   result <- call_openai_api(messages, api_key = "sk-...")
 #'   suggestions <- result$suggestions
 #' }

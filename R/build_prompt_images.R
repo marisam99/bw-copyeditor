@@ -7,6 +7,14 @@
 #               Uses fixed token estimates for image processing costs.
 # ==============================================================================
 
+# Configuration ---------------------------------------------------------------
+# Adjust these constants to change model settings and behavior
+
+DETAIL <- "high"                # Image detail level: "high" or "low" (high recommended for copyediting)
+CONTEXT_WINDOW <- 128000        # Maximum tokens per request (128k for gpt-4o)
+IMAGES_PER_CHUNK <- 20          # Maximum images per chunk (conservative for safety)
+MODEL <- "gpt-4o"               # Model name, per OpenAI API documentation (must support vision)
+
 # Helper Functions ------------------------------------------------------------
 
 #' Project Context Header
@@ -103,18 +111,12 @@ estimate_image_tokens <- function(detail = "high") {
 #' @keywords internal
 build_multimodal_content <- function(parsed_document, deliverable_type, audience, detail = "high") {
 
-  # Start with text context
+  # Start with text context (header only, system prompt loaded separately)
   header <- context_header(deliverable_type, audience)
-  intro_text <- paste0(
-    header, "\n\n",
-    "File:\n\n",
-    "The following pages are from a document that needs copyediting. ",
-    "Please review each page for errors according to the instructions provided."
-  )
 
-  # Initialize content array with intro text
+  # Initialize content array with header
   content <- list(
-    list(type = "text", text = intro_text)
+    list(type = "text", text = header)
   )
 
   # Add each page as an image
@@ -241,12 +243,6 @@ chunk_by_images <- function(parsed_document,
 #' @param deliverable_type Character. Type of deliverable (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param context_window Integer. Maximum tokens per request (default: 128000 for gpt-4o).
-#' @param detail Character. Image detail level: "high" or "low" (default: "high").
-#'   Use "high" for copyediting to ensure small text is readable.
-#' @param images_per_chunk Integer. Maximum images per chunk (default: 20).
-#'   Adjust based on image size and context window. Conservative default for safety.
-#' @param model Character. Model name for reference (default: "gpt-4o").
 #'
 #' @return Tibble with columns:
 #'   \item{chunk_id}{Integer. Sequential chunk identifier}
@@ -256,19 +252,18 @@ chunk_by_images <- function(parsed_document,
 #'
 #' @details
 #' The function automatically chunks documents to stay within token and payload limits.
-#' Each chunk contains up to `images_per_chunk` pages, with each image base64-encoded
-#' and embedded as a data URL.
+#' Images are processed at "high" detail level (~2,805 tokens per image) to ensure
+#' small text is readable for copyediting.
 #'
-#' Token costs per image (approximate):
-#' - "high" detail: ~2,805 tokens (better for reading text, recommended for copyediting)
-#' - "low" detail: ~85 tokens (may miss small text)
+#' Model settings (context window, chunk size, model name, detail level) are configured
+#' as constants at the top of this script and can be adjusted there as needed.
 #'
 #' The returned user_message is a list-column containing the multimodal content structure.
 #' This differs from text mode where user_message is a character string.
 #'
 #' IMPORTANT: Image mode is more expensive and slower than text mode.
 #' Use image mode only for documents where visual elements matter (e.g., slide decks,
-#' documents with text in charts/diagrams). For pure text documents, use build_prompt()
+#' documents with text in charts/diagrams). For pure text documents, use build_prompt_text()
 #' with parse_document(mode = "text") instead.
 #'
 #' @examples
@@ -293,11 +288,13 @@ chunk_by_images <- function(parsed_document,
 #' @export
 build_prompt_images <- function(parsed_document,
                                deliverable_type,
-                               audience,
-                               context_window = 128000,
-                               detail = "high",
-                               images_per_chunk = 20,
-                               model = "gpt-4o") {
+                               audience) {
+
+  # Use constants defined at top of script
+  detail <- DETAIL
+  context_window <- CONTEXT_WINDOW
+  images_per_chunk <- IMAGES_PER_CHUNK
+  model <- MODEL
 
   # Validate inputs
   if (missing(parsed_document) || !inherits(parsed_document, "data.frame")) {
@@ -316,10 +313,6 @@ build_prompt_images <- function(parsed_document,
     stop("audience cannot be empty")
   }
 
-  if (!detail %in% c("high", "low")) {
-    stop("detail must be 'high' or 'low'")
-  }
-
   # Validate base64enc package is available
   if (!requireNamespace("base64enc", quietly = TRUE)) {
     stop("Package 'base64enc' is required. Install with: install.packages('base64enc')")
@@ -332,7 +325,7 @@ build_prompt_images <- function(parsed_document,
 
   message(glue::glue(
     "Processing {total_pages} page(s) as images ",
-    "(~{format(estimated_tokens, big.mark = ',')} tokens at '{detail}' detail)"
+    "(~{format(estimated_tokens, big.mark = ',')} tokens at high detail)"
   ))
 
   # Calculate if we need to chunk
