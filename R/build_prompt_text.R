@@ -282,7 +282,7 @@ build_prompt_text <- function(parsed_document,
   # Build header and format all pages
   header <- context_header(deliverable_type, audience)
   all_pages <- combine_pages(parsed_document)
-  system_prompt_path <- file.path("config", "llm_instructions.txt")
+  system_prompt_path <- file.path("config", "system_prompt.txt")
   system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
 
   # Construct full inputs

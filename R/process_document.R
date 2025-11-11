@@ -141,9 +141,9 @@ process_document <- function(file_path,
   }
 
   # Load system prompt
-  system_prompt_path <- file.path("config", "system_prompt_template.txt")
+  system_prompt_path <- file.path("config", "system_prompt.txt")
   if (file.exists(system_prompt_path)) {
-    if (verbose) cat("Loading system prompt from config/system_prompt_template.txt\n")
+    if (verbose) cat("Loading system prompt from config/system_prompt.txt\n")
     system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
   } else {
     if (verbose) cat("Using default system prompt\n")

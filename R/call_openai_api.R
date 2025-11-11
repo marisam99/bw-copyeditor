@@ -5,6 +5,22 @@
 #               Supports both text-only and multimodal (image) modes.
 # ==============================================================================
 
+#' Load System Prompt from Config File
+#'
+#' Loads the system prompt from config/system_prompt.txt. This function is
+#' used internally by both call_openai_api() and call_openai_api_images().
+#'
+#' @return Character string containing the system prompt.
+#' @keywords internal
+load_system_prompt <- function() {
+  system_prompt_path <- file.path("config", "system_prompt.txt")
+  if (!file.exists(system_prompt_path)) {
+    stop("System prompt file not found at config/system_prompt.txt")
+  }
+  paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
+}
+
+
 #' Call OpenAI API for Copyediting (Text Mode)
 #'
 #' Sends a text-only request to the OpenAI API using the ellmer package and
@@ -13,7 +29,7 @@
 #'
 #' @param user_message Character. The user message text from build_prompt().
 #' @param system_prompt Character. The system prompt with copyediting instructions.
-#'   If NULL, loads from config/llm_instructions.txt.
+#'   If NULL, loads from config/system_prompt.txt.
 #' @param model Character. OpenAI model to use (default: "gpt-4o").
 #'   Options: "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", etc.
 #' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
@@ -41,7 +57,7 @@
 #'   user_msgs <- build_prompt(parsed, "external client-facing", "Healthcare executives")
 #'
 #'   # Load system prompt
-#'   system_prompt <- paste(readLines("config/system_prompt_template.txt", warn = FALSE), collapse = "\n")
+#'   system_prompt <- paste(readLines("config/system_prompt.txt", warn = FALSE), collapse = "\n")
 #'
 #'   # Call API (requires OPENAI_API_KEY environment variable)
 #'   result <- call_openai_api(
@@ -71,12 +87,7 @@ call_openai_api <- function(user_message,
 
   # Load system prompt if not provided
   if (is.null(system_prompt)) {
-    system_prompt_path <- file.path("config", "llm_instructions.txt")
-    if (file.exists(system_prompt_path)) {
-      system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
-    } else {
-      stop("System prompt not provided and config/llm_instructions.txt not found")
-    }
+    system_prompt <- load_system_prompt()
   }
 
   # Validate inputs
@@ -146,7 +157,7 @@ call_openai_api <- function(user_message,
 #' @param user_content List. The ellmer-formatted content from build_prompt_images().
 #'   This should be a list of ellmer content objects (strings and content_image_file).
 #' @param system_prompt Character. The system prompt with copyediting instructions.
-#'   If NULL, loads from config/llm_instructions.txt.
+#'   If NULL, loads from config/system_prompt.txt.
 #' @param model Character. Vision-capable OpenAI model to use (default: "gpt-4o").
 #'   Options: "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", etc. Must support vision.
 #' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
@@ -211,12 +222,7 @@ call_openai_api_images <- function(user_content,
 
   # Load system prompt if not provided
   if (is.null(system_prompt)) {
-    system_prompt_path <- file.path("config", "llm_instructions.txt")
-    if (file.exists(system_prompt_path)) {
-      system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
-    } else {
-      stop("System prompt not provided and config/llm_instructions.txt not found")
-    }
+    system_prompt <- load_system_prompt()
   }
 
   # Validate inputs

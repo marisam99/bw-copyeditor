@@ -4,14 +4,14 @@ This directory contains templates and configuration files for the bw-copyeditor 
 
 ## Files
 
-### `system_prompt_template.txt`
+### `system_prompt.txt`
 
-Template for the system prompt that includes your organization's style guide.
+The system prompt that includes copyediting instructions and style guide. This file is automatically loaded by `call_openai_api()` and `call_openai_api_images()` when no custom system prompt is provided.
 
 **Usage:**
-1. Copy this file to `system_prompt.txt` (or any name you prefer)
-2. Edit the style guide section to match your organization's conventions
-3. Load it in your R script:
+1. Edit this file to customize the copyediting instructions and style guide
+2. The functions will automatically load it from `config/system_prompt.txt`
+3. Or load it manually in your R script if needed:
 
 ```r
 system_prompt <- load_system_prompt("config/system_prompt.txt")
