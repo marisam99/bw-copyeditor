@@ -10,8 +10,8 @@
 # Configuration ---------------------------------------------------------------
 # Adjust these constants to change model settings and behavior
 
-CONTEXT_WINDOW <- 400000        # Maximum tokens per request (400k for gpt-4)
-MODEL <- "gpt-4"                # Model name per OpenAPI API documentation, for tokenization
+CONTEXT_WINDOW <- 400000        # Maximum tokens per request (400k for gpt-4o)
+MODEL <- "gpt-4o"               # Model name per OpenAI API documentation, for tokenization
 
 # Helper Functions ------------------------------------------------------------
 

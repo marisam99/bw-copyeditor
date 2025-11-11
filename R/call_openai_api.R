@@ -5,6 +5,18 @@
 #               Supports both text-only and multimodal (image) modes.
 # ==============================================================================
 
+# Configuration ---------------------------------------------------------------
+# Model selection for API calls
+
+# Model for text-only copyediting (high quality, efficient for text)
+MODEL_TEXT <- "gpt-4o"
+
+# Model for image-based copyediting (vision-capable, best for reading text in images)
+MODEL_IMAGES <- "gpt-4o"
+
+
+# Helper Functions ------------------------------------------------------------
+
 #' Load System Prompt from Config File
 #'
 #' Loads the system prompt from config/system_prompt.txt. This function is
@@ -30,11 +42,13 @@ load_system_prompt <- function() {
 #' @param user_message Character. The user message text from build_prompt().
 #' @param system_prompt Character. The system prompt with copyediting instructions.
 #'   If NULL, loads from config/system_prompt.txt.
-#' @param model Character. OpenAI model to use (default: "gpt-4o").
-#'   Options: "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", etc.
 #' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
 #'   Lower values make output more focused and deterministic.
 #' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: 3).
+#'
+#' @details
+#' This function uses the model specified in MODEL_TEXT constant (currently "gpt-4o").
+#' To change the model, edit the MODEL_TEXT constant at the top of call_openai_api.R.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -70,7 +84,6 @@ load_system_prompt <- function() {
 #' @export
 call_openai_api <- function(user_message,
                            system_prompt = NULL,
-                           model = "gpt-4o",
                            temperature = 0.3,
                            max_retries = 3) {
 
@@ -108,7 +121,7 @@ call_openai_api <- function(user_message,
       # Create chat session
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
-        model = model,
+        model = MODEL_TEXT,
         api_key = api_key,
         api_args = list(
           temperature = temperature,
@@ -120,7 +133,7 @@ call_openai_api <- function(user_message,
       response <- chat$chat(user_message)
 
       # Parse the JSON response
-      result <- parse_json_response(response, model, chat)
+      result <- parse_json_response(response, MODEL_TEXT, chat)
 
       return(result)
 
@@ -158,13 +171,15 @@ call_openai_api <- function(user_message,
 #'   This should be a list of ellmer content objects (strings and content_image_file).
 #' @param system_prompt Character. The system prompt with copyediting instructions.
 #'   If NULL, loads from config/system_prompt.txt.
-#' @param model Character. Vision-capable OpenAI model to use (default: "gpt-4o").
-#'   Options: "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", etc. Must support vision.
 #' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
 #'   Lower values make output more focused and deterministic.
 #' @param max_tokens Integer. Maximum tokens in response (default: 16000).
 #'   Higher for image mode due to potentially more issues to report.
 #' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: 3).
+#'
+#' @details
+#' This function uses the model specified in MODEL_IMAGES constant (currently "gpt-4o").
+#' To change the model, edit the MODEL_IMAGES constant at the top of call_openai_api.R.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -204,7 +219,6 @@ call_openai_api <- function(user_message,
 #' @export
 call_openai_api_images <- function(user_content,
                                   system_prompt = NULL,
-                                  model = "gpt-4o",
                                   temperature = 0.3,
                                   max_tokens = 16000,
                                   max_retries = 3) {
@@ -234,15 +248,6 @@ call_openai_api_images <- function(user_content,
     stop("temperature must be between 0 and 2")
   }
 
-  # Validate that model supports vision
-  vision_models <- c("gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini")
-  if (!model %in% vision_models) {
-    warning(sprintf(
-      "Model '%s' may not support vision. Recommended models: %s",
-      model, paste(vision_models, collapse = ", ")
-    ))
-  }
-
   # Create chat session with retry logic
   attempt <- 1
   last_error <- NULL
@@ -252,7 +257,7 @@ call_openai_api_images <- function(user_content,
       # Create chat session
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
-        model = model,
+        model = MODEL_IMAGES,
         api_key = api_key,
         api_args = list(
           temperature = temperature,
@@ -266,7 +271,7 @@ call_openai_api_images <- function(user_content,
       response <- do.call(chat$chat, user_content)
 
       # Parse the JSON response
-      result <- parse_json_response(response, model, chat)
+      result <- parse_json_response(response, MODEL_IMAGES, chat)
 
       return(result)
 

@@ -31,8 +31,7 @@ Sys.setenv(OPENAI_API_KEY = "sk-your-api-key-here")
 results <- process_document(
   file_path = "path/to/your/document.pdf",
   document_type = "external client-facing",
-  audience = "Healthcare executives and stakeholders",
-  model = "gpt-4"
+  audience = "Healthcare executives and stakeholders"
 )
 
 # View results

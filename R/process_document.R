@@ -40,7 +40,6 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 #' @param document_type Character. Type of document (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param model Character. OpenAI model to use (default: "gpt-4").
 #' @param temperature Numeric. Sampling temperature (default: 0.3).
 #' @param context_window Integer. Maximum tokens per API call (default: 400000).
 #' @param process_pages Integer vector. Specific pages to process. If NULL,
@@ -84,7 +83,6 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 process_document <- function(file_path,
                              document_type,
                              audience,
-                             model = "gpt-4",
                              temperature = 0.3,
                              context_window = 400000,
                              process_pages = NULL,
@@ -156,8 +154,7 @@ process_document <- function(file_path,
     parsed_document = parsed_doc,
     document_type = document_type,
     audience = audience,
-    context_window = context_window,
-    model = model
+    context_window = context_window
   )
 
   num_chunks <- nrow(user_message_chunks)
@@ -184,7 +181,6 @@ process_document <- function(file_path,
       result <- call_openai_api(
         user_message = chunk$user_message,
         system_prompt = system_prompt,
-        model = model,
         temperature = temperature
       )
 
@@ -234,7 +230,7 @@ process_document <- function(file_path,
   attr(results_df, "audience") <- audience
   attr(results_df, "pages_processed") <- if (!is.null(process_pages)) process_pages else seq_len(total_pages)
   attr(results_df, "num_chunks") <- num_chunks
-  attr(results_df, "model") <- model
+  attr(results_df, "model") <- "gpt-4o"  # Model used for text-mode copyediting
   attr(results_df, "api_metadata") <- api_metadata
   attr(results_df, "processed_at") <- Sys.time()
 
