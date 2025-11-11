@@ -316,12 +316,16 @@ export_results <- function(results_df, output_path, include_metadata = TRUE) {
   if (include_metadata && !is.null(attr(results_df, "document_path"))) {
 
     # Create metadata data frame
+    doc_type <- attr(results_df, "document_type")
+    aud <- attr(results_df, "audience")
+    chunks <- attr(results_df, "num_chunks")
+
     metadata <- data.frame(
       document_path = attr(results_df, "document_path"),
-      document_type = attr(results_df, "document_type") %||% NA,
-      audience = attr(results_df, "audience") %||% NA,
+      document_type = if (is.null(doc_type)) NA else doc_type,
+      audience = if (is.null(aud)) NA else aud,
       pages_processed = paste(attr(results_df, "pages_processed"), collapse = ", "),
-      num_chunks = attr(results_df, "num_chunks") %||% 1,
+      num_chunks = if (is.null(chunks)) 1 else chunks,
       model = attr(results_df, "model"),
       total_suggestions = nrow(results_df),
       processed_at = as.character(attr(results_df, "processed_at")),

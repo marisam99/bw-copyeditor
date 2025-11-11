@@ -344,9 +344,9 @@ parse_json_response <- function(response, model, chat) {
   response_metadata <- tryCatch({
     turn <- chat$last_turn()
     list(
-      finish_reason = turn$finish_reason %||% "unknown",
-      created = turn$created %||% Sys.time(),
-      id = turn$id %||% NA
+      finish_reason = if (is.null(turn$finish_reason)) "unknown" else turn$finish_reason,
+      created = if (is.null(turn$created)) Sys.time() else turn$created,
+      id = if (is.null(turn$id)) NA else turn$id
     )
   }, error = function(e) {
     list(
@@ -365,18 +365,4 @@ parse_json_response <- function(response, model, chat) {
   )
 
   return(result)
-}
-
-
-#' Null-coalescing operator
-#'
-#' Returns left-hand side if not NULL, otherwise returns right-hand side.
-#'
-#' @param x First value
-#' @param y Default value if x is NULL
-#'
-#' @return x if not NULL, otherwise y
-#' @keywords internal
-`%||%` <- function(x, y) {
-  if (is.null(x)) y else x
 }
