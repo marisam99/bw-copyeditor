@@ -61,6 +61,10 @@ The tool supports two parsing modes for PDF documents:
 -   Prefer `%>%` or `|>` pipes for data transformations
 -   Use dplyr verbs for data manipulation
 -   Keep functions simple and well-documented
+-   **Function organization:** Always place helper functions before main exported functions within a script. This makes the code easier to read and maintain:
+    1. Configuration constants (if any)
+    2. Helper functions (marked with `@keywords internal`)
+    3. Main exported functions (marked with `@export`)
 
 ------------------------------------------------------------------------
 

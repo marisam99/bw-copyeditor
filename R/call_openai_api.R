@@ -33,6 +33,77 @@ load_system_prompt <- function() {
 }
 
 
+#' Parse JSON Response from API
+#'
+#' Extracts and parses the copyediting suggestions from the API response.
+#'
+#' @param response Character. Response content from chat$chat().
+#' @param model Character. Model name used.
+#' @param chat Chat object. The ellmer chat session.
+#'
+#' @return List with parsed suggestions and metadata.
+#' @keywords internal
+parse_json_response <- function(response, model, chat) {
+
+  if (!requireNamespace("jsonlite", quietly = TRUE)) {
+    stop("Package 'jsonlite' is required. Install with: install.packages('jsonlite')")
+  }
+
+  # Parse the JSON suggestions from response
+  suggestions <- tryCatch({
+    # Response should be a JSON string
+    parsed <- jsonlite::fromJSON(response, simplifyVector = FALSE)
+
+    # If it's already parsed (has suggestions field), use it directly
+    if (is.list(parsed) && "suggestions" %in% names(parsed)) {
+      parsed$suggestions
+    } else {
+      # Otherwise, the whole thing might be the suggestions array
+      parsed
+    }
+  }, error = function(e) {
+    warning(sprintf("Failed to parse API response as JSON: %s\nRaw content: %s",
+                   e$message, substr(response, 1, 500)))
+    list()  # Return empty list if parsing fails
+  })
+
+  # Try to get usage information from chat object
+  usage <- tryCatch({
+    chat$last_turn()$tokens
+  }, error = function(e) {
+    NULL
+  })
+
+  # Try to get other metadata
+  response_metadata <- tryCatch({
+    turn <- chat$last_turn()
+    list(
+      finish_reason = if (is.null(turn$finish_reason)) "unknown" else turn$finish_reason,
+      created = if (is.null(turn$created)) Sys.time() else turn$created,
+      id = if (is.null(turn$id)) NA else turn$id
+    )
+  }, error = function(e) {
+    list(
+      finish_reason = "unknown",
+      created = Sys.time(),
+      id = NA
+    )
+  })
+
+  # Return structured result
+  result <- list(
+    suggestions = suggestions,
+    model = model,
+    usage = usage,
+    response_metadata = response_metadata
+  )
+
+  return(result)
+}
+
+
+# Main Functions --------------------------------------------------------------
+
 #' Call OpenAI API for Copyediting (Text Mode)
 #'
 #' Sends a text-only request to the OpenAI API using the ellmer package and
@@ -296,73 +367,4 @@ call_openai_api_images <- function(user_content,
 
   # If we get here, all retries failed
   stop(sprintf("API request failed after %d attempts: %s", max_retries, last_error$message))
-}
-
-
-#' Parse JSON Response from API
-#'
-#' Extracts and parses the copyediting suggestions from the API response.
-#'
-#' @param response Character. Response content from chat$chat().
-#' @param model Character. Model name used.
-#' @param chat Chat object. The ellmer chat session.
-#'
-#' @return List with parsed suggestions and metadata.
-#' @keywords internal
-parse_json_response <- function(response, model, chat) {
-
-  if (!requireNamespace("jsonlite", quietly = TRUE)) {
-    stop("Package 'jsonlite' is required. Install with: install.packages('jsonlite')")
-  }
-
-  # Parse the JSON suggestions from response
-  suggestions <- tryCatch({
-    # Response should be a JSON string
-    parsed <- jsonlite::fromJSON(response, simplifyVector = FALSE)
-
-    # If it's already parsed (has suggestions field), use it directly
-    if (is.list(parsed) && "suggestions" %in% names(parsed)) {
-      parsed$suggestions
-    } else {
-      # Otherwise, the whole thing might be the suggestions array
-      parsed
-    }
-  }, error = function(e) {
-    warning(sprintf("Failed to parse API response as JSON: %s\nRaw content: %s",
-                   e$message, substr(response, 1, 500)))
-    list()  # Return empty list if parsing fails
-  })
-
-  # Try to get usage information from chat object
-  usage <- tryCatch({
-    chat$last_turn()$tokens
-  }, error = function(e) {
-    NULL
-  })
-
-  # Try to get other metadata
-  response_metadata <- tryCatch({
-    turn <- chat$last_turn()
-    list(
-      finish_reason = if (is.null(turn$finish_reason)) "unknown" else turn$finish_reason,
-      created = if (is.null(turn$created)) Sys.time() else turn$created,
-      id = if (is.null(turn$id)) NA else turn$id
-    )
-  }, error = function(e) {
-    list(
-      finish_reason = "unknown",
-      created = Sys.time(),
-      id = NA
-    )
-  })
-
-  # Return structured result
-  result <- list(
-    suggestions = suggestions,
-    model = model,
-    usage = usage,
-    response_metadata = response_metadata
-  )
-
-  return(result)
 }
