@@ -15,12 +15,13 @@ source("R/format_results.R")
 # Setup
 # ====================
 
-# Set your OpenAI API key
-# Option 1: Set as environment variable (recommended)
+# Set your OpenAI API key as an environment variable
+# Option 1: Set in your .Renviron file (recommended for permanent setup):
+#   OPENAI_API_KEY=sk-your-api-key-here
+# Then restart R session
+#
+# Option 2: Set for current session only:
 Sys.setenv(OPENAI_API_KEY = "sk-your-api-key-here")
-
-# Option 2: Pass directly to function (less secure)
-# api_key <- "sk-your-api-key-here"
 
 # ====================
 # Basic Example

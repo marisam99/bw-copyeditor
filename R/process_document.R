@@ -40,8 +40,6 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 #' @param document_type Character. Type of document (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param api_key Character. OpenAI API key. If NULL, reads from OPENAI_API_KEY
-#'   environment variable.
 #' @param model Character. OpenAI model to use (default: "gpt-4").
 #' @param temperature Numeric. Sampling temperature (default: 0.3).
 #' @param context_window Integer. Maximum tokens per API call (default: 400000).
@@ -63,12 +61,11 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 #'
 #' @examples
 #' \dontrun{
-#'   # Process entire document
+#'   # Process entire document (requires OPENAI_API_KEY environment variable)
 #'   results <- process_document(
 #'     file_path = "report.pdf",
 #'     document_type = "external client-facing",
-#'     audience = "Healthcare executives",
-#'     api_key = Sys.getenv("OPENAI_API_KEY")
+#'     audience = "Healthcare executives"
 #'   )
 #'
 #'   # Process specific pages only
@@ -87,7 +84,6 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 process_document <- function(file_path,
                              document_type,
                              audience,
-                             api_key = NULL,
                              model = "gpt-4",
                              temperature = 0.3,
                              context_window = 400000,
@@ -183,18 +179,12 @@ process_document <- function(file_path,
                   chunk$page_start, chunk$page_end))
     }
 
-    # Construct messages array with system prompt and user message
-    messages <- list(
-      list(role = "system", content = system_prompt),
-      list(role = "user", content = chunk$user_message)
-    )
-
     # Call API
     tryCatch({
       result <- call_openai_api(
-        messages = messages,
+        user_message = chunk$user_message,
+        system_prompt = system_prompt,
         model = model,
-        api_key = api_key,
         temperature = temperature
       )
 

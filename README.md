@@ -98,9 +98,9 @@ Constructs the messages array for OpenAI API requests.
   - Adds project-specific context
   - Helper function to load prompts from files
 
-### 3. `call_openai_api(messages, model, api_key, ...)`
+### 3. `call_openai_api(user_message, system_prompt, model, ...)`
 Sends requests to OpenAI API with error handling and retry logic.
-- **Input**: Messages, model name, API key, parameters
+- **Input**: User message, system prompt, model name, parameters (API key read from environment)
 - **Output**: Parsed JSON response with suggestions
 - **Features**:
   - Exponential backoff for rate limiting

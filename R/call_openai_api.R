@@ -16,8 +16,6 @@
 #'   If NULL, loads from config/llm_instructions.txt.
 #' @param model Character. OpenAI model to use (default: "gpt-4o").
 #'   Options: "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", etc.
-#' @param api_key Character. OpenAI API key. If NULL, will attempt to read
-#'   from OPENAI_API_KEY environment variable.
 #' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
 #'   Lower values make output more focused and deterministic.
 #' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: 3).
@@ -34,10 +32,9 @@
 #'   doc <- parse_document(mode = "text")
 #'   prompts <- build_prompt(doc, "external client-facing", "Healthcare executives")
 #'
-#'   # Call API for first chunk
+#'   # Call API for first chunk (requires OPENAI_API_KEY environment variable)
 #'   result <- call_openai_api(
-#'     user_message = prompts$user_message[1],
-#'     api_key = "sk-..."
+#'     user_message = prompts$user_message[1]
 #'   )
 #'   # Parse document and build user messages
 #'   parsed <- parse_document("report.pdf", mode = "text")
@@ -46,14 +43,11 @@
 #'   # Load system prompt
 #'   system_prompt <- paste(readLines("config/system_prompt_template.txt", warn = FALSE), collapse = "\n")
 #'
-#'   # Construct messages array
-#'   messages <- list(
-#'     list(role = "system", content = system_prompt),
-#'     list(role = "user", content = user_msgs$user_message[1])
+#'   # Call API (requires OPENAI_API_KEY environment variable)
+#'   result <- call_openai_api(
+#'     user_message = user_msgs$user_message[1],
+#'     system_prompt = system_prompt
 #'   )
-#'
-#'   # Call API
-#'   result <- call_openai_api(messages, api_key = "sk-...")
 #'   suggestions <- result$suggestions
 #' }
 #'
@@ -61,7 +55,6 @@
 call_openai_api <- function(user_message,
                            system_prompt = NULL,
                            model = "gpt-4o",
-                           api_key = NULL,
                            temperature = 0.3,
                            max_retries = 3) {
 
@@ -70,12 +63,10 @@ call_openai_api <- function(user_message,
     stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
   }
 
-  # Get API key
-  if (is.null(api_key)) {
-    api_key <- Sys.getenv("OPENAI_API_KEY")
-    if (api_key == "") {
-      stop("OpenAI API key not found. Provide via api_key parameter or set OPENAI_API_KEY environment variable.")
-    }
+  # Get API key from environment variable
+  api_key <- Sys.getenv("OPENAI_API_KEY")
+  if (api_key == "") {
+    stop("OpenAI API key not found. Set OPENAI_API_KEY in your .Renviron file or use Sys.setenv(OPENAI_API_KEY = 'your-key').")
   }
 
   # Load system prompt if not provided
@@ -158,8 +149,6 @@ call_openai_api <- function(user_message,
 #'   If NULL, loads from config/llm_instructions.txt.
 #' @param model Character. Vision-capable OpenAI model to use (default: "gpt-4o").
 #'   Options: "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", etc. Must support vision.
-#' @param api_key Character. OpenAI API key. If NULL, will attempt to read
-#'   from OPENAI_API_KEY environment variable.
 #' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
 #'   Lower values make output more focused and deterministic.
 #' @param max_tokens Integer. Maximum tokens in response (default: 16000).
@@ -194,10 +183,9 @@ call_openai_api <- function(user_message,
 #'     "Healthcare executives"
 #'   )
 #'
-#'   # Call API for first chunk
+#'   # Call API for first chunk (requires OPENAI_API_KEY environment variable)
 #'   result <- call_openai_api_images(
-#'     user_content = prompts$user_message[[1]],
-#'     api_key = "sk-..."
+#'     user_content = prompts$user_message[[1]]
 #'   )
 #'   suggestions <- result$suggestions
 #' }
@@ -206,7 +194,6 @@ call_openai_api <- function(user_message,
 call_openai_api_images <- function(user_content,
                                   system_prompt = NULL,
                                   model = "gpt-4o",
-                                  api_key = NULL,
                                   temperature = 0.3,
                                   max_tokens = 16000,
                                   max_retries = 3) {
@@ -216,12 +203,10 @@ call_openai_api_images <- function(user_content,
     stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
   }
 
-  # Get API key
-  if (is.null(api_key)) {
-    api_key <- Sys.getenv("OPENAI_API_KEY")
-    if (api_key == "") {
-      stop("OpenAI API key not found. Provide via api_key parameter or set OPENAI_API_KEY environment variable.")
-    }
+  # Get API key from environment variable
+  api_key <- Sys.getenv("OPENAI_API_KEY")
+  if (api_key == "") {
+    stop("OpenAI API key not found. Set OPENAI_API_KEY in your .Renviron file or use Sys.setenv(OPENAI_API_KEY = 'your-key').")
   }
 
   # Load system prompt if not provided
