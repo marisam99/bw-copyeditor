@@ -2,14 +2,14 @@
 # =================================================
 #
 # This script demonstrates advanced features including:
-# - Different models and parameters
 # - Batch processing multiple documents
 # - Custom analysis and reporting
 # - Handling large documents with automatic chunking
+# - Low-level API usage for advanced control
 
 # Load the package functions
 source("R/parse_document.R")
-source("R/build_prompt.R")
+source("R/build_prompt_text.R")
 source("R/call_openai_api.R")
 source("R/process_document.R")
 source("R/format_results.R")
@@ -22,30 +22,27 @@ source("R/format_results.R")
 results <- process_document(
   file_path = "document.pdf",
   document_type = "external client-facing",
-  audience = "Healthcare executives and C-suite stakeholders",
-  model = "gpt-4"
+  audience = "Healthcare executives and C-suite stakeholders"
 )
 
 # ====================
-# Different Models
+# Processing with Custom Settings
 # ====================
 
-# Use GPT-4 Turbo (faster, cheaper)
-results_turbo <- process_document(
+# Process with faster rate limiting
+results_fast <- process_document(
   file_path = "document.pdf",
   document_type = "internal",
   audience = "Research team",
-  model = "gpt-4-turbo-preview",
-  temperature = 0.2  # Lower temperature for more consistency
+  delay_between_chunks = 0.5  # Faster rate limiting
 )
 
-# Use GPT-3.5 Turbo (fastest, cheapest, less accurate)
-results_gpt35 <- process_document(
+# Process specific pages only
+results_partial <- process_document(
   file_path = "document.pdf",
   document_type = "external field-facing",
   audience = "Healthcare providers",
-  model = "gpt-3.5-turbo",
-  delay_between_chunks = 0.5  # Faster rate limiting
+  process_pages = c(1, 2, 5, 10)  # Only process these pages
 )
 
 # ====================
@@ -125,11 +122,10 @@ parsed_doc <- parse_document("document.pdf", mode = "text")
 cat(sprintf("Document has %d pages\n", nrow(parsed_doc)))
 
 # 2. Build user messages (with automatic chunking if needed)
-user_message_chunks <- build_prompt(
+user_message_chunks <- build_prompt_text(
   parsed_document = parsed_doc,
-  document_type = "internal",
-  audience = "Data science team",
-  context_window = 400000
+  deliverable_type = "internal",
+  audience = "Data science team"
 )
 
 cat(sprintf("Document split into %d chunk(s)\n", nrow(user_message_chunks)))
@@ -141,17 +137,10 @@ system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "
 # 4. Process first chunk manually
 first_chunk <- user_message_chunks[1, ]
 
-# Construct messages array
-messages <- list(
-  list(role = "system", content = system_prompt),
-  list(role = "user", content = first_chunk$user_message)
-)
-
-# 5. Call API
+# 5. Call API (configuration like temperature is set in config/model_config.R)
 api_result <- call_openai_api(
-  messages = messages,
-  model = "gpt-4",
-  temperature = 0.3
+  user_message = first_chunk$user_message,
+  system_prompt = system_prompt
 )
 
 # 6. Format results

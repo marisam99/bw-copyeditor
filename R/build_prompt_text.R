@@ -8,7 +8,7 @@
 # ==============================================================================
 
 # Load configuration ----------------------------------------------------------
-source(file.path("R", "config.R"))
+source(file.path("config", "model_config.R"))
 
 # Helper Functions ------------------------------------------------------------
 
@@ -223,7 +223,7 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #' Token counting uses the rtiktoken package for exact token counts
 #' matching the specified model's tokenizer.
 #'
-#' Model settings (context window and model name) are configured in R/config.R
+#' Model settings (context window and model name) are configured in config/model_config.R
 #' and can be adjusted there as needed.
 #'
 #' The returned user_message does NOT include the system prompt - that should be
@@ -250,7 +250,7 @@ build_prompt_text <- function(parsed_document,
                         deliverable_type,
                         audience) {
 
-  # Use constants from R/config.R
+  # Use constants from config/model_config.R
   context_window <- CONTEXT_WINDOW_TEXT
   model <- MODEL_TEXT
 
@@ -279,8 +279,7 @@ build_prompt_text <- function(parsed_document,
   # Build header and format all pages
   header <- context_header(deliverable_type, audience)
   all_pages <- combine_pages(parsed_document)
-  system_prompt_path <- file.path("config", "system_prompt.txt")
-  system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
+  system_prompt <- load_system_prompt()
 
   # Construct full inputs
   all_inputs <- paste0(system_prompt, "\n\n", header, "\n\nFile:\n\n", all_pages)

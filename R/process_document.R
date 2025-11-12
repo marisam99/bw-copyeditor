@@ -1,5 +1,5 @@
 # Load configuration ----------------------------------------------------------
-source(file.path("R", "config.R"))
+source(file.path("config", "model_config.R"))
 
 
 #' Get Default System Prompt
@@ -44,8 +44,7 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 #' @param document_type Character. Type of document (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param temperature Numeric. Sampling temperature (default: DEFAULT_TEMPERATURE from config.R).
-#' @param context_window Integer. Maximum tokens per API call (default: CONTEXT_WINDOW_TEXT from config.R).
+#' @param context_window Integer. Maximum tokens per API call (default: CONTEXT_WINDOW_TEXT from config/model_config.R).
 #' @param process_pages Integer vector. Specific pages to process. If NULL,
 #'   processes all pages (default: NULL).
 #' @param verbose Logical. Print progress messages (default: TRUE).
@@ -87,7 +86,6 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 process_document <- function(file_path,
                              document_type,
                              audience,
-                             temperature = DEFAULT_TEMPERATURE,
                              context_window = CONTEXT_WINDOW_TEXT,
                              process_pages = NULL,
                              verbose = TRUE,
@@ -143,22 +141,15 @@ process_document <- function(file_path,
   }
 
   # Load system prompt
-  system_prompt_path <- file.path("config", "system_prompt.txt")
-  if (file.exists(system_prompt_path)) {
-    if (verbose) cat("Loading system prompt from config/system_prompt.txt\n")
-    system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
-  } else {
-    if (verbose) cat("Using default system prompt\n")
-    system_prompt <- get_default_system_prompt()
-  }
+  if (verbose) cat("Loading system prompt from config/system_prompt.txt\n")
+  system_prompt <- load_system_prompt()
 
   # Build user messages (with automatic chunking if needed)
   if (verbose) cat("Building user messages...\n")
-  user_message_chunks <- build_prompt(
+  user_message_chunks <- build_prompt_text(
     parsed_document = parsed_doc,
-    document_type = document_type,
-    audience = audience,
-    context_window = context_window
+    deliverable_type = document_type,
+    audience = audience
   )
 
   num_chunks <- nrow(user_message_chunks)
@@ -184,8 +175,7 @@ process_document <- function(file_path,
     tryCatch({
       result <- call_openai_api(
         user_message = chunk$user_message,
-        system_prompt = system_prompt,
-        temperature = temperature
+        system_prompt = system_prompt
       )
 
       # Store suggestions
@@ -234,7 +224,7 @@ process_document <- function(file_path,
   attr(results_df, "audience") <- audience
   attr(results_df, "pages_processed") <- if (!is.null(process_pages)) process_pages else seq_len(total_pages)
   attr(results_df, "num_chunks") <- num_chunks
-  attr(results_df, "model") <- MODEL_TEXT  # Model used for text-mode copyediting (from config.R)
+  attr(results_df, "model") <- MODEL_TEXT  # Model used for text-mode copyediting (from config/model_config.R)
   attr(results_df, "api_metadata") <- api_metadata
   attr(results_df, "processed_at") <- Sys.time()
 

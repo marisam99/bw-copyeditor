@@ -1,5 +1,5 @@
 # ==============================================================================
-# Global Configuration for BW Copyeditor
+# Model Configuration for BW Copyeditor
 # ==============================================================================
 # This file contains all centralized configuration settings for the copyediting tool.
 # Modify values here to change model selections, context windows, and API parameters.
@@ -37,9 +37,35 @@ CONTEXT_WINDOW_TEXT <- 400000
 MODEL_IMAGES <- "gpt-4o"
 
 #' Maximum tokens per API request for image mode
-#' Same as text mode for consistency
-CONTEXT_WINDOW_IMAGES <- 400000
+#' Lower than text mode due to image token overhead (128k for gpt-4o)
+CONTEXT_WINDOW_IMAGES <- 128000
 
 #' Maximum tokens in response for image mode
 #' Higher than default due to potentially more issues to report from visual content
 MAX_TOKENS_IMAGES <- 16000
+
+#' Image detail level for vision API
+#' Options: "high" or "low" (high recommended for copyediting to catch all text)
+DETAIL <- "high"
+
+#' Maximum images per chunk for image mode
+#' Conservative limit to avoid token overflow and ensure reliable processing
+IMAGES_PER_CHUNK <- 20
+
+
+# Helper Functions ------------------------------------------------------------
+
+#' Load System Prompt from Config File
+#'
+#' Loads the system prompt from config/system_prompt.txt. This function is
+#' used internally by API calling functions to load the copyediting instructions.
+#'
+#' @return Character string containing the system prompt.
+#' @keywords internal
+load_system_prompt <- function() {
+  system_prompt_path <- file.path("config", "system_prompt.txt")
+  if (!file.exists(system_prompt_path)) {
+    stop("System prompt file not found at config/system_prompt.txt")
+  }
+  paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
+}

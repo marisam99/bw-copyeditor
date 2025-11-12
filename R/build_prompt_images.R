@@ -7,13 +7,8 @@
 #               Uses fixed token estimates for image processing costs.
 # ==============================================================================
 
-# Configuration ---------------------------------------------------------------
-# Adjust these constants to change model settings and behavior
-
-DETAIL <- "high"                # Image detail level: "high" or "low" (high recommended for copyediting)
-CONTEXT_WINDOW <- 128000        # Maximum tokens per request (128k for gpt-4o)
-IMAGES_PER_CHUNK <- 20          # Maximum images per chunk (conservative for safety)
-MODEL <- "gpt-4o"               # Model name, per OpenAI API documentation (must support vision)
+# Load configuration ----------------------------------------------------------
+source(file.path("config", "model_config.R"))
 
 # Helper Functions ------------------------------------------------------------
 
@@ -261,11 +256,11 @@ build_prompt_images <- function(parsed_document,
                                deliverable_type,
                                audience) {
 
-  # Use constants defined at top of script
+  # Use constants from config/model_config.R
   detail <- DETAIL
-  context_window <- CONTEXT_WINDOW
+  context_window <- CONTEXT_WINDOW_IMAGES
   images_per_chunk <- IMAGES_PER_CHUNK
-  model <- MODEL
+  model <- MODEL_IMAGES
 
   # Validate inputs
   if (missing(parsed_document) || !inherits(parsed_document, "data.frame")) {
@@ -291,6 +286,8 @@ build_prompt_images <- function(parsed_document,
   # Validate ellmer package is available
   if (!requireNamespace("ellmer", quietly = TRUE)) {
     stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
+  }
+
   # Validate base64enc package is available
   if (!requireNamespace("base64enc", quietly = TRUE)) {
     stop("Package 'base64enc' is required. Install with: install.packages('base64enc')")

@@ -6,7 +6,7 @@
 
 # Load the package functions
 source("R/parse_document.R")
-source("R/build_prompt.R")
+source("R/build_prompt_text.R")
 source("R/call_openai_api.R")
 source("R/process_document.R")
 source("R/format_results.R")

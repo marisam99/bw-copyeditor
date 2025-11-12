@@ -6,26 +6,10 @@
 # ==============================================================================
 
 # Load configuration ----------------------------------------------------------
-source(file.path("R", "config.R"))
+source(file.path("config", "model_config.R"))
 
 
 # Helper Functions ------------------------------------------------------------
-
-#' Load System Prompt from Config File
-#'
-#' Loads the system prompt from config/system_prompt.txt. This function is
-#' used internally by both call_openai_api() and call_openai_api_images().
-#'
-#' @return Character string containing the system prompt.
-#' @keywords internal
-load_system_prompt <- function() {
-  system_prompt_path <- file.path("config", "system_prompt.txt")
-  if (!file.exists(system_prompt_path)) {
-    stop("System prompt file not found at config/system_prompt.txt")
-  }
-  paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
-}
-
 
 #' Parse JSON Response from API
 #'
@@ -104,16 +88,16 @@ parse_json_response <- function(response, model, chat) {
 #' returns the parsed response. For documents with images, use call_openai_api_images()
 #' instead.
 #'
-#' @param user_message Character. The user message text from build_prompt().
+#' @param user_message Character. The user message text from build_prompt_text() for text mode.
 #' @param system_prompt Character. The system prompt with copyediting instructions.
 #'   If NULL, loads from config/system_prompt.txt.
-#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: DEFAULT_TEMPERATURE from config.R).
-#'   Lower values make output more focused and deterministic.
-#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: MAX_RETRY_ATTEMPTS from config.R).
 #'
 #' @details
-#' This function uses the model specified in MODEL_TEXT (from R/config.R).
-#' To change the model, edit MODEL_TEXT in R/config.R.
+#' This function uses the model specified in MODEL_TEXT (from config/model_config.R).
+#' To change the model, edit MODEL_TEXT in config/model_config.R.
+#'
+#' Temperature and retry settings are configured in config/model_config.R via
+#' DEFAULT_TEMPERATURE and MAX_RETRY_ATTEMPTS.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -123,43 +107,29 @@ parse_json_response <- function(response, model, chat) {
 #'
 #' @examples
 #' \dontrun{
-#'   # Parse document and build prompt
-#'   doc <- parse_document(mode = "text")
-#'   prompts <- build_prompt(doc, "external client-facing", "Healthcare executives")
-#'
-#'   # Call API for first chunk (requires OPENAI_API_KEY environment variable)
-#'   result <- call_openai_api(
-#'     user_message = prompts$user_message[1]
-#'   )
 #'   # Parse document and build user messages
-#'   parsed <- parse_document("report.pdf", mode = "text")
-#'   user_msgs <- build_prompt(parsed, "external client-facing", "Healthcare executives")
-#'
-#'   # Load system prompt
-#'   system_prompt <- paste(readLines("config/system_prompt.txt", warn = FALSE), collapse = "\n")
+#'   parsed <- parse_document(mode = "text")
+#'   user_msgs <- build_prompt_text(parsed, "external client-facing", "Healthcare executives")
 #'
 #'   # Call API (requires OPENAI_API_KEY environment variable)
+#'   # system_prompt loads automatically from config/system_prompt.txt
 #'   result <- call_openai_api(
-#'     user_message = user_msgs$user_message[1],
-#'     system_prompt = system_prompt
+#'     user_message = user_msgs$user_message[1]
 #'   )
 #'   suggestions <- result$suggestions
 #' }
 #'
 #' @export
 call_openai_api <- function(user_message,
-                           system_prompt = NULL,
-                           temperature = DEFAULT_TEMPERATURE,
-                           max_retries = MAX_RETRY_ATTEMPTS) {
+                           system_prompt = NULL) {
 
   # Load required package
   if (!requireNamespace("ellmer", quietly = TRUE)) {
     stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
   }
 
-  # Get API key from environment variable
-  api_key <- Sys.getenv("OPENAI_API_KEY")
-  if (api_key == "") {
+  # Check API key is set in environment
+  if (Sys.getenv("OPENAI_API_KEY") == "") {
     stop("OpenAI API key not found. Set OPENAI_API_KEY in your .Renviron file or use Sys.setenv(OPENAI_API_KEY = 'your-key').")
   }
 
@@ -173,24 +143,18 @@ call_openai_api <- function(user_message,
     stop("user_message must be a single character string")
   }
 
-  if (temperature < 0 || temperature > 2) {
-    stop("temperature must be between 0 and 2")
-  }
-
   # Create chat session with retry logic
   attempt <- 1
   last_error <- NULL
 
-  while (attempt <= max_retries) {
+  while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
-      # Create chat session
+      # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
         model = MODEL_TEXT,
-        api_key = api_key,
         api_args = list(
-          temperature = temperature,
-          response_format = list(type = "json_object")
+          temperature = DEFAULT_TEMPERATURE
         )
       )
 
@@ -206,11 +170,11 @@ call_openai_api <- function(user_message,
       last_error <- e
       if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
         message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
-                       attempt, max_retries, attempt * 2))
+                       attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
       } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
         message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
-                       attempt, max_retries, attempt * 2))
+                       attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
         # Don't retry on client errors
@@ -222,7 +186,7 @@ call_openai_api <- function(user_message,
   }
 
   # If we get here, all retries failed
-  stop(sprintf("API request failed after %d attempts: %s", max_retries, last_error$message))
+  stop(sprintf("API request failed after %d attempts: %s", MAX_RETRY_ATTEMPTS, last_error$message))
 }
 
 
@@ -234,17 +198,13 @@ call_openai_api <- function(user_message,
 #'
 #' @param user_content List. The ellmer-formatted content from build_prompt_images().
 #'   This should be a list of ellmer content objects (strings and content_image_file).
-#' @param system_prompt Character. The system prompt with copyediting instructions.
-#'   If NULL, loads from config/system_prompt.txt.
-#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: DEFAULT_TEMPERATURE from config.R).
-#'   Lower values make output more focused and deterministic.
-#' @param max_tokens Integer. Maximum tokens in response (default: MAX_TOKENS_IMAGES from config.R).
-#'   Higher for image mode due to potentially more issues to report.
-#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: MAX_RETRY_ATTEMPTS from config.R).
 #'
 #' @details
-#' This function uses the model specified in MODEL_IMAGES (from R/config.R).
-#' To change the model, edit MODEL_IMAGES in R/config.R.
+#' This function uses the model specified in MODEL_IMAGES (from config/model_config.R).
+#' To change the model, edit MODEL_IMAGES in config/model_config.R.
+#'
+#' Temperature, max_tokens, and retry settings are configured in config/model_config.R via
+#' DEFAULT_TEMPERATURE, MAX_TOKENS_IMAGES, and MAX_RETRY_ATTEMPTS.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -282,52 +242,39 @@ call_openai_api <- function(user_message,
 #' }
 #'
 #' @export
-call_openai_api_images <- function(user_content,
-                                  system_prompt = NULL,
-                                  temperature = DEFAULT_TEMPERATURE,
-                                  max_tokens = MAX_TOKENS_IMAGES,
-                                  max_retries = MAX_RETRY_ATTEMPTS) {
+call_openai_api_images <- function(user_content) {
 
   # Load required package
   if (!requireNamespace("ellmer", quietly = TRUE)) {
     stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
   }
 
-  # Get API key from environment variable
-  api_key <- Sys.getenv("OPENAI_API_KEY")
-  if (api_key == "") {
+  # Check API key is set in environment
+  if (Sys.getenv("OPENAI_API_KEY") == "") {
     stop("OpenAI API key not found. Set OPENAI_API_KEY in your .Renviron file or use Sys.setenv(OPENAI_API_KEY = 'your-key').")
   }
 
-  # Load system prompt if not provided
-  if (is.null(system_prompt)) {
-    system_prompt <- load_system_prompt()
-  }
+  # Load system prompt
+  system_prompt <- load_system_prompt()
 
   # Validate inputs
   if (!is.list(user_content) || length(user_content) == 0) {
     stop("user_content must be a non-empty list of ellmer content objects from build_prompt_images()")
   }
 
-  if (temperature < 0 || temperature > 2) {
-    stop("temperature must be between 0 and 2")
-  }
-
   # Create chat session with retry logic
   attempt <- 1
   last_error <- NULL
 
-  while (attempt <= max_retries) {
+  while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
-      # Create chat session
+      # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
         model = MODEL_IMAGES,
-        api_key = api_key,
         api_args = list(
-          temperature = temperature,
-          max_tokens = max_tokens,
-          response_format = list(type = "json_object")
+          temperature = DEFAULT_TEMPERATURE,
+          max_tokens = MAX_TOKENS_IMAGES
         )
       )
 
@@ -344,11 +291,11 @@ call_openai_api_images <- function(user_content,
       last_error <- e
       if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
         message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
-                       attempt, max_retries, attempt * 2))
+                       attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
       } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
         message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
-                       attempt, max_retries, attempt * 2))
+                       attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
         # Don't retry on client errors
@@ -360,5 +307,5 @@ call_openai_api_images <- function(user_content,
   }
 
   # If we get here, all retries failed
-  stop(sprintf("API request failed after %d attempts: %s", max_retries, last_error$message))
+  stop(sprintf("API request failed after %d attempts: %s", MAX_RETRY_ATTEMPTS, last_error$message))
 }
