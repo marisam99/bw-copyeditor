@@ -10,12 +10,12 @@
 
 #' Create Empty Results Data Frame
 #'
-#' Creates an empty data frame with the correct structure.
+#' Creates an empty tibble with the correct structure.
 #'
-#' @return Empty data frame with proper column types.
+#' @return Empty tibble with proper column types.
 #' @keywords internal
 create_empty_results_df <- function() {
-  data.frame(
+  tibble::tibble(
     page_number = integer(0),
     location = character(0),
     original_text = character(0),
@@ -23,8 +23,7 @@ create_empty_results_df <- function() {
     edit_type = character(0),
     reason = character(0),
     severity = character(0),
-    confidence = numeric(0),
-    stringsAsFactors = FALSE
+    confidence = numeric(0)
   )
 }
 
@@ -49,21 +48,21 @@ get_field <- function(lst, field, default) {
 
 #' Convert List to Data Frame
 #'
-#' Converts the nested list structure from API to a flat data frame.
+#' Converts the nested list structure from API to a flat tibble.
 #'
 #' @param suggestions_list List of suggestions.
 #'
-#' @return Data frame.
+#' @return Tibble.
 #' @keywords internal
 convert_list_to_df <- function(suggestions_list) {
 
-  # Extract each suggestion
-  rows <- lapply(suggestions_list, function(suggestion) {
+  # Extract each suggestion using purrr
+  rows <- purrr::map(suggestions_list, function(suggestion) {
 
     # Handle both flat and nested structures
     if (is.list(suggestion)) {
       # Extract fields with defaults
-      data.frame(
+      tibble::tibble(
         page_number = as.integer(get_field(suggestion, "page_number", NA)),
         location = as.character(get_field(suggestion, "location", "")),
         original_text = as.character(get_field(suggestion, "original_text", "")),
@@ -71,8 +70,7 @@ convert_list_to_df <- function(suggestions_list) {
         edit_type = as.character(get_field(suggestion, "edit_type", "other")),
         reason = as.character(get_field(suggestion, "reason", "")),
         severity = as.character(get_field(suggestion, "severity", "recommended")),
-        confidence = as.numeric(get_field(suggestion, "confidence", 0.5)),
-        stringsAsFactors = FALSE
+        confidence = as.numeric(get_field(suggestion, "confidence", 0.5))
       )
     } else {
       # Skip invalid entries
@@ -80,15 +78,15 @@ convert_list_to_df <- function(suggestions_list) {
     }
   })
 
-  # Remove NULL entries
-  rows <- rows[!sapply(rows, is.null)]
+  # Remove NULL entries using purrr::compact
+  rows <- purrr::compact(rows)
 
   if (length(rows) == 0) {
     return(create_empty_results_df())
   }
 
-  # Combine into single data frame
-  results_df <- do.call(rbind, rows)
+  # Combine into single tibble using dplyr::bind_rows
+  results_df <- dplyr::bind_rows(rows)
 
   return(results_df)
 }
@@ -96,11 +94,11 @@ convert_list_to_df <- function(suggestions_list) {
 
 #' Validate Results
 #'
-#' Validates and cleans the results data frame.
+#' Validates and cleans the results tibble.
 #'
-#' @param results_df Data frame.
+#' @param results_df Tibble.
 #'
-#' @return Validated data frame.
+#' @return Validated tibble.
 #' @keywords internal
 validate_results <- function(results_df) {
 
@@ -108,47 +106,47 @@ validate_results <- function(results_df) {
     return(results_df)
   }
 
-  # Ensure proper types
-  if ("page_number" %in% names(results_df)) {
-    results_df$page_number <- as.integer(results_df$page_number)
-  }
+  # Ensure proper types and standardize values using dplyr::mutate
+  results_df <- results_df %>%
+    dplyr::mutate(
+      # Ensure proper types
+      page_number = as.integer(page_number),
+      confidence = as.numeric(confidence),
+      # Clamp confidence to [0, 1]
+      confidence = dplyr::case_when(
+        confidence < 0 ~ 0,
+        confidence > 1 ~ 1,
+        TRUE ~ confidence
+      ),
+      # Standardize severity values
+      severity = tolower(trimws(severity)),
+      severity = dplyr::if_else(
+        severity %in% c("critical", "recommended", "optional"),
+        severity,
+        "recommended"
+      ),
+      # Standardize edit_type values
+      edit_type = tolower(trimws(edit_type)),
+      edit_type = dplyr::if_else(
+        edit_type %in% c("grammar", "style", "clarity", "consistency", "spelling", "other"),
+        edit_type,
+        "other"
+      )
+    )
 
-  if ("confidence" %in% names(results_df)) {
-    results_df$confidence <- as.numeric(results_df$confidence)
-    # Clamp confidence to [0, 1]
-    results_df$confidence[results_df$confidence < 0] <- 0
-    results_df$confidence[results_df$confidence > 1] <- 1
-  }
-
-  # Standardize severity values
-  if ("severity" %in% names(results_df)) {
-    results_df$severity <- tolower(trimws(results_df$severity))
-    valid_severities <- c("critical", "recommended", "optional")
-
-    # Map to valid values
-    results_df$severity[!results_df$severity %in% valid_severities] <- "recommended"
-  }
-
-  # Standardize edit_type values
-  if ("edit_type" %in% names(results_df)) {
-    results_df$edit_type <- tolower(trimws(results_df$edit_type))
-    valid_types <- c("grammar", "style", "clarity", "consistency", "spelling", "other")
-
-    # Map to valid values
-    results_df$edit_type[!results_df$edit_type %in% valid_types] <- "other"
-  }
-
-  # Trim whitespace from character columns
-  char_cols <- sapply(results_df, is.character)
-  results_df[char_cols] <- lapply(results_df[char_cols], trimws)
+  # Trim whitespace from all character columns
+  char_cols <- names(results_df)[sapply(results_df, is.character)]
+  results_df <- results_df %>%
+    dplyr::mutate(dplyr::across(dplyr::all_of(char_cols), trimws))
 
   # Remove rows with missing critical fields
-  if (any(c("page_number", "original_text") %in% names(results_df))) {
-    complete_rows <- complete.cases(results_df[c("page_number", "original_text")])
-    if (sum(!complete_rows) > 0) {
-      warning(sprintf("Removed %d rows with missing critical fields", sum(!complete_rows)))
-      results_df <- results_df[complete_rows, ]
-    }
+  n_before <- nrow(results_df)
+  results_df <- results_df %>%
+    dplyr::filter(!is.na(page_number), !is.na(original_text), original_text != "")
+
+  n_removed <- n_before - nrow(results_df)
+  if (n_removed > 0) {
+    warning(sprintf("Removed %d rows with missing critical fields", n_removed))
   }
 
   return(results_df)
@@ -159,9 +157,9 @@ validate_results <- function(results_df) {
 #'
 #' Reorders columns in a standard way.
 #'
-#' @param results_df Data frame.
+#' @param results_df Tibble.
 #'
-#' @return Data frame with ordered columns.
+#' @return Tibble with ordered columns.
 #' @keywords internal
 order_columns <- function(results_df) {
 
@@ -177,14 +175,12 @@ order_columns <- function(results_df) {
     "confidence"
   )
 
-  # Get actual columns in preferred order
-  ordered_cols <- preferred_order[preferred_order %in% names(results_df)]
-
-  # Add any extra columns at the end
-  extra_cols <- setdiff(names(results_df), ordered_cols)
-  all_cols <- c(ordered_cols, extra_cols)
-
-  results_df <- results_df[, all_cols, drop = FALSE]
+  # Get columns that exist in preferred order, then add any extras
+  results_df <- results_df %>%
+    dplyr::select(
+      dplyr::any_of(preferred_order),
+      dplyr::everything()
+    )
 
   return(results_df)
 }
@@ -194,9 +190,9 @@ order_columns <- function(results_df) {
 #'
 #' Sorts results by page number and severity.
 #'
-#' @param results_df Data frame.
+#' @param results_df Tibble.
 #'
-#' @return Sorted data frame.
+#' @return Sorted tibble.
 #' @keywords internal
 sort_results <- function(results_df) {
 
@@ -204,29 +200,17 @@ sort_results <- function(results_df) {
     return(results_df)
   }
 
-  # Define severity order
-  severity_order <- c("critical", "recommended", "optional")
+  # Define severity order for sorting
+  severity_levels <- c("critical", "recommended", "optional")
 
-  # Create sorting key for severity
-  if ("severity" %in% names(results_df)) {
-    results_df$severity_order <- match(results_df$severity, severity_order)
-    results_df$severity_order[is.na(results_df$severity_order)] <- 99
-  } else {
-    results_df$severity_order <- 1
-  }
-
-  # Sort by page number, then severity
-  if ("page_number" %in% names(results_df)) {
-    results_df <- results_df[order(results_df$page_number, results_df$severity_order), ]
-  } else {
-    results_df <- results_df[order(results_df$severity_order), ]
-  }
-
-  # Remove temporary sorting column
-  results_df$severity_order <- NULL
-
-  # Reset row names
-  rownames(results_df) <- NULL
+  # Sort by page number, then severity using dplyr::arrange
+  results_df <- results_df %>%
+    dplyr::mutate(
+      severity_order = match(severity, severity_levels),
+      severity_order = dplyr::if_else(is.na(severity_order), 99L, as.integer(severity_order))
+    ) %>%
+    dplyr::arrange(page_number, severity_order) %>%
+    dplyr::select(-severity_order)
 
   return(results_df)
 }
@@ -237,11 +221,11 @@ sort_results <- function(results_df) {
 #' Format Copyediting Results
 #'
 #' Converts a list of copyediting suggestions from OpenAI API into a clean,
-#' structured data frame with proper column types and validation.
+#' structured tibble with proper column types and validation.
 #'
 #' @param suggestions_list List. Raw suggestions from API responses.
 #'
-#' @return A data frame with standardized columns:
+#' @return A tibble with standardized columns:
 #'   \item{page_number}{Integer}
 #'   \item{location}{Character}
 #'   \item{original_text}{Character}
@@ -270,7 +254,7 @@ format_results <- function(suggestions_list) {
     return(create_empty_results_df())
   }
 
-  # Convert list to data frame
+  # Convert list to tibble
   results_df <- convert_list_to_df(suggestions_list)
 
   # Validate and clean
@@ -290,13 +274,13 @@ format_results <- function(suggestions_list) {
 #'
 #' Helper function to filter results by various criteria.
 #'
-#' @param results_df Data frame. Results from process_document().
+#' @param results_df Tibble. Results from process_document().
 #' @param severity Character vector. Filter by severity (e.g., c("critical", "recommended")).
 #' @param edit_type Character vector. Filter by edit type (e.g., c("grammar", "spelling")).
 #' @param pages Integer vector. Filter by page numbers.
 #' @param min_confidence Numeric. Minimum confidence threshold (0-1).
 #'
-#' @return Filtered data frame.
+#' @return Filtered tibble.
 #'
 #' @examples
 #' \dontrun{
@@ -318,30 +302,29 @@ filter_results <- function(results_df,
                           pages = NULL,
                           min_confidence = NULL) {
 
+  # Start with full dataset
   filtered <- results_df
 
-  # Filter by severity
-  if (!is.null(severity) && "severity" %in% names(filtered)) {
-    filtered <- filtered[filtered$severity %in% severity, ]
+  # Apply filters using dplyr::filter
+  if (!is.null(severity)) {
+    filtered <- filtered %>%
+      dplyr::filter(severity %in% !!severity)
   }
 
-  # Filter by edit_type
-  if (!is.null(edit_type) && "edit_type" %in% names(filtered)) {
-    filtered <- filtered[filtered$edit_type %in% edit_type, ]
+  if (!is.null(edit_type)) {
+    filtered <- filtered %>%
+      dplyr::filter(edit_type %in% !!edit_type)
   }
 
-  # Filter by pages
-  if (!is.null(pages) && "page_number" %in% names(filtered)) {
-    filtered <- filtered[filtered$page_number %in% pages, ]
+  if (!is.null(pages)) {
+    filtered <- filtered %>%
+      dplyr::filter(page_number %in% !!pages)
   }
 
-  # Filter by confidence
-  if (!is.null(min_confidence) && "confidence" %in% names(filtered)) {
-    filtered <- filtered[filtered$confidence >= min_confidence, ]
+  if (!is.null(min_confidence)) {
+    filtered <- filtered %>%
+      dplyr::filter(confidence >= !!min_confidence)
   }
-
-  # Reset row names
-  rownames(filtered) <- NULL
 
   return(filtered)
 }
