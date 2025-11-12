@@ -1,54 +1,12 @@
-#' Format Copyediting Results
-#'
-#' Converts a list of copyediting suggestions from OpenAI API into a clean,
-#' structured data frame with proper column types and validation.
-#'
-#' @param suggestions_list List. Raw suggestions from API responses.
-#'
-#' @return A data frame with standardized columns:
-#'   \item{page_number}{Integer}
-#'   \item{location}{Character}
-#'   \item{original_text}{Character}
-#'   \item{suggested_edit}{Character}
-#'   \item{edit_type}{Character}
-#'   \item{reason}{Character}
-#'   \item{severity}{Character}
-#'   \item{confidence}{Numeric}
-#'
-#' @examples
-#' \dontrun{
-#'   suggestions <- list(
-#'     list(page_number = 1, location = "first paragraph",
-#'          original_text = "their", suggested_edit = "there",
-#'          edit_type = "grammar", reason = "Wrong form of there/their/they're",
-#'          severity = "critical", confidence = 0.95)
-#'   )
-#'   df <- format_results(suggestions)
-#' }
-#'
-#' @export
-format_results <- function(suggestions_list) {
+# ==============================================================================
+# Title:        Result Formatter
+# Last Updated: 2025-11-12
+# Description:  Functions to format and validate copyediting suggestions from
+#               LLM API responses into clean, structured data frames.
+# ==============================================================================
 
-  # Handle empty suggestions
-  if (is.null(suggestions_list) || length(suggestions_list) == 0) {
-    return(create_empty_results_df())
-  }
 
-  # Convert list to data frame
-  results_df <- convert_list_to_df(suggestions_list)
-
-  # Validate and clean
-  results_df <- validate_results(results_df)
-
-  # Order columns
-  results_df <- order_columns(results_df)
-
-  # Sort by page number and severity
-  results_df <- sort_results(results_df)
-
-  return(results_df)
-}
-
+# Helper Functions ------------------------------------------------------------
 
 #' Create Empty Results Data Frame
 #'
@@ -68,6 +26,24 @@ create_empty_results_df <- function() {
     confidence = numeric(0),
     stringsAsFactors = FALSE
   )
+}
+
+
+#' Get Field from List
+#'
+#' Safely extract a field from a list with a default value.
+#'
+#' @param lst List.
+#' @param field Character. Field name.
+#' @param default Default value if field is missing or NULL.
+#'
+#' @return Field value or default.
+#' @keywords internal
+get_field <- function(lst, field, default) {
+  if (field %in% names(lst) && !is.null(lst[[field]])) {
+    return(lst[[field]])
+  }
+  return(default)
 }
 
 
@@ -115,24 +91,6 @@ convert_list_to_df <- function(suggestions_list) {
   results_df <- do.call(rbind, rows)
 
   return(results_df)
-}
-
-
-#' Get Field from List
-#'
-#' Safely extract a field from a list with a default value.
-#'
-#' @param lst List.
-#' @param field Character. Field name.
-#' @param default Default value if field is missing or NULL.
-#'
-#' @return Field value or default.
-#' @keywords internal
-get_field <- function(lst, field, default) {
-  if (field %in% names(lst) && !is.null(lst[[field]])) {
-    return(lst[[field]])
-  }
-  return(default)
 }
 
 
@@ -269,6 +227,60 @@ sort_results <- function(results_df) {
 
   # Reset row names
   rownames(results_df) <- NULL
+
+  return(results_df)
+}
+
+
+# Main Functions --------------------------------------------------------------
+
+#' Format Copyediting Results
+#'
+#' Converts a list of copyediting suggestions from OpenAI API into a clean,
+#' structured data frame with proper column types and validation.
+#'
+#' @param suggestions_list List. Raw suggestions from API responses.
+#'
+#' @return A data frame with standardized columns:
+#'   \item{page_number}{Integer}
+#'   \item{location}{Character}
+#'   \item{original_text}{Character}
+#'   \item{suggested_edit}{Character}
+#'   \item{edit_type}{Character}
+#'   \item{reason}{Character}
+#'   \item{severity}{Character}
+#'   \item{confidence}{Numeric}
+#'
+#' @examples
+#' \dontrun{
+#'   suggestions <- list(
+#'     list(page_number = 1, location = "first paragraph",
+#'          original_text = "their", suggested_edit = "there",
+#'          edit_type = "grammar", reason = "Wrong form of there/their/they're",
+#'          severity = "critical", confidence = 0.95)
+#'   )
+#'   df <- format_results(suggestions)
+#' }
+#'
+#' @export
+format_results <- function(suggestions_list) {
+
+  # Handle empty suggestions
+  if (is.null(suggestions_list) || length(suggestions_list) == 0) {
+    return(create_empty_results_df())
+  }
+
+  # Convert list to data frame
+  results_df <- convert_list_to_df(suggestions_list)
+
+  # Validate and clean
+  results_df <- validate_results(results_df)
+
+  # Order columns
+  results_df <- order_columns(results_df)
+
+  # Sort by page number and severity
+  results_df <- sort_results(results_df)
 
   return(results_df)
 }
