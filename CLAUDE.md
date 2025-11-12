@@ -14,7 +14,7 @@ An R package for automated copyediting using Large Language Models (LLMs). This 
 
 **Input:** - File path to a PDF document (PDF only - export DOCX/PPTX to PDF first)
 
-**Output:** - A data frame (table) containing suggested edits with the following columns: - `page_number` - Which page the error appears on - `original_text` - The text containing the error - `suggested_correction` - Recommended fix - `error_type` - Type/reason for the suggested edit (e.g., "grammar", "spelling", "punctuation", "style")
+**Output:** - A data frame (table) containing suggested edits with the following columns: - `page_number` - Which page the error appears on - `issue` - Brief description of the issue (e.g., "grammar error", "AP Style violation") - `original_text` - The text containing the error - `suggested_edit` - Recommended fix - `rationale` - Explanation of why this edit is needed - `severity` - One of: "critical", "recommended", "optional" - `confidence` - Numeric value between 0 and 1 indicating confidence in the suggestion
 
 ------------------------------------------------------------------------
 
