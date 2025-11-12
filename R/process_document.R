@@ -1,3 +1,7 @@
+# Load configuration ----------------------------------------------------------
+source(file.path("R", "config.R"))
+
+
 #' Get Default System Prompt
 #'
 #' Returns the default system prompt with instructions for copyediting.
@@ -40,8 +44,8 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 #' @param document_type Character. Type of document (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param temperature Numeric. Sampling temperature (default: 0.3).
-#' @param context_window Integer. Maximum tokens per API call (default: 400000).
+#' @param temperature Numeric. Sampling temperature (default: DEFAULT_TEMPERATURE from config.R).
+#' @param context_window Integer. Maximum tokens per API call (default: CONTEXT_WINDOW_TEXT from config.R).
 #' @param process_pages Integer vector. Specific pages to process. If NULL,
 #'   processes all pages (default: NULL).
 #' @param verbose Logical. Print progress messages (default: TRUE).
@@ -83,8 +87,8 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 process_document <- function(file_path,
                              document_type,
                              audience,
-                             temperature = 0.3,
-                             context_window = 400000,
+                             temperature = DEFAULT_TEMPERATURE,
+                             context_window = CONTEXT_WINDOW_TEXT,
                              process_pages = NULL,
                              verbose = TRUE,
                              delay_between_chunks = 1) {
@@ -230,7 +234,7 @@ process_document <- function(file_path,
   attr(results_df, "audience") <- audience
   attr(results_df, "pages_processed") <- if (!is.null(process_pages)) process_pages else seq_len(total_pages)
   attr(results_df, "num_chunks") <- num_chunks
-  attr(results_df, "model") <- "gpt-4o"  # Model used for text-mode copyediting
+  attr(results_df, "model") <- MODEL_TEXT  # Model used for text-mode copyediting (from config.R)
   attr(results_df, "api_metadata") <- api_metadata
   attr(results_df, "processed_at") <- Sys.time()
 

@@ -5,14 +5,8 @@
 #               Supports both text-only and multimodal (image) modes.
 # ==============================================================================
 
-# Configuration ---------------------------------------------------------------
-# Model selection for API calls
-
-# Model for text-only copyediting (high quality, efficient for text)
-MODEL_TEXT <- "gpt-4o"
-
-# Model for image-based copyediting (vision-capable, best for reading text in images)
-MODEL_IMAGES <- "gpt-4o"
+# Load configuration ----------------------------------------------------------
+source(file.path("R", "config.R"))
 
 
 # Helper Functions ------------------------------------------------------------
@@ -113,13 +107,13 @@ parse_json_response <- function(response, model, chat) {
 #' @param user_message Character. The user message text from build_prompt().
 #' @param system_prompt Character. The system prompt with copyediting instructions.
 #'   If NULL, loads from config/system_prompt.txt.
-#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
+#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: DEFAULT_TEMPERATURE from config.R).
 #'   Lower values make output more focused and deterministic.
-#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: 3).
+#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: MAX_RETRY_ATTEMPTS from config.R).
 #'
 #' @details
-#' This function uses the model specified in MODEL_TEXT constant (currently "gpt-4o").
-#' To change the model, edit the MODEL_TEXT constant at the top of call_openai_api.R.
+#' This function uses the model specified in MODEL_TEXT (from R/config.R).
+#' To change the model, edit MODEL_TEXT in R/config.R.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -155,8 +149,8 @@ parse_json_response <- function(response, model, chat) {
 #' @export
 call_openai_api <- function(user_message,
                            system_prompt = NULL,
-                           temperature = 0.3,
-                           max_retries = 3) {
+                           temperature = DEFAULT_TEMPERATURE,
+                           max_retries = MAX_RETRY_ATTEMPTS) {
 
   # Load required package
   if (!requireNamespace("ellmer", quietly = TRUE)) {
@@ -242,15 +236,15 @@ call_openai_api <- function(user_message,
 #'   This should be a list of ellmer content objects (strings and content_image_file).
 #' @param system_prompt Character. The system prompt with copyediting instructions.
 #'   If NULL, loads from config/system_prompt.txt.
-#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
+#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: DEFAULT_TEMPERATURE from config.R).
 #'   Lower values make output more focused and deterministic.
-#' @param max_tokens Integer. Maximum tokens in response (default: 16000).
+#' @param max_tokens Integer. Maximum tokens in response (default: MAX_TOKENS_IMAGES from config.R).
 #'   Higher for image mode due to potentially more issues to report.
-#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: 3).
+#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: MAX_RETRY_ATTEMPTS from config.R).
 #'
 #' @details
-#' This function uses the model specified in MODEL_IMAGES constant (currently "gpt-4o").
-#' To change the model, edit the MODEL_IMAGES constant at the top of call_openai_api.R.
+#' This function uses the model specified in MODEL_IMAGES (from R/config.R).
+#' To change the model, edit MODEL_IMAGES in R/config.R.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -290,9 +284,9 @@ call_openai_api <- function(user_message,
 #' @export
 call_openai_api_images <- function(user_content,
                                   system_prompt = NULL,
-                                  temperature = 0.3,
-                                  max_tokens = 16000,
-                                  max_retries = 3) {
+                                  temperature = DEFAULT_TEMPERATURE,
+                                  max_tokens = MAX_TOKENS_IMAGES,
+                                  max_retries = MAX_RETRY_ATTEMPTS) {
 
   # Load required package
   if (!requireNamespace("ellmer", quietly = TRUE)) {
