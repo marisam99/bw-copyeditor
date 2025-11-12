@@ -17,11 +17,10 @@
 create_empty_results_df <- function() {
   tibble::tibble(
     page_number = integer(0),
-    location = character(0),
+    issue = character(0),
     original_text = character(0),
     suggested_edit = character(0),
-    edit_type = character(0),
-    reason = character(0),
+    rationale = character(0),
     severity = character(0),
     confidence = numeric(0)
   )
@@ -46,11 +45,10 @@ convert_list_to_df <- function(suggestions_list) {
       # Extract fields with defaults using purrr::pluck
       tibble::tibble(
         page_number = as.integer(purrr::pluck(suggestion, "page_number", .default = NA)),
-        location = as.character(purrr::pluck(suggestion, "location", .default = "")),
+        issue = as.character(purrr::pluck(suggestion, "issue", .default = "")),
         original_text = as.character(purrr::pluck(suggestion, "original_text", .default = "")),
         suggested_edit = as.character(purrr::pluck(suggestion, "suggested_edit", .default = "")),
-        edit_type = as.character(purrr::pluck(suggestion, "edit_type", .default = "other")),
-        reason = as.character(purrr::pluck(suggestion, "reason", .default = "")),
+        rationale = as.character(purrr::pluck(suggestion, "rationale", .default = "")),
         severity = as.character(purrr::pluck(suggestion, "severity", .default = "recommended")),
         confidence = as.numeric(purrr::pluck(suggestion, "confidence", .default = 0.5))
       )
@@ -106,13 +104,6 @@ validate_results <- function(results_df) {
         severity %in% c("critical", "recommended", "optional"),
         severity,
         "recommended"
-      ),
-      # Standardize edit_type values
-      edit_type = tolower(trimws(edit_type)),
-      edit_type = dplyr::if_else(
-        edit_type %in% c("grammar", "style", "clarity", "consistency", "spelling", "other"),
-        edit_type,
-        "other"
       )
     )
 
@@ -148,11 +139,10 @@ order_columns <- function(results_df) {
   # Define preferred column order
   preferred_order <- c(
     "page_number",
-    "location",
+    "issue",
     "original_text",
     "suggested_edit",
-    "edit_type",
-    "reason",
+    "rationale",
     "severity",
     "confidence"
   )
@@ -209,20 +199,19 @@ sort_results <- function(results_df) {
 #'
 #' @return A tibble with standardized columns:
 #'   \item{page_number}{Integer}
-#'   \item{location}{Character}
+#'   \item{issue}{Character - brief description of the issue}
 #'   \item{original_text}{Character}
 #'   \item{suggested_edit}{Character}
-#'   \item{edit_type}{Character}
-#'   \item{reason}{Character}
-#'   \item{severity}{Character}
-#'   \item{confidence}{Numeric}
+#'   \item{rationale}{Character - explanation for the edit}
+#'   \item{severity}{Character - critical/recommended/optional}
+#'   \item{confidence}{Numeric - 0 to 1}
 #'
 #' @examples
 #' \dontrun{
 #'   suggestions <- list(
-#'     list(page_number = 1, location = "first paragraph",
+#'     list(page_number = 1, issue = "grammar error",
 #'          original_text = "their", suggested_edit = "there",
-#'          edit_type = "grammar", reason = "Wrong form of there/their/they're",
+#'          rationale = "Wrong form of there/their/they're",
 #'          severity = "critical", confidence = 0.95)
 #'   )
 #'   df <- format_results(suggestions)
@@ -263,7 +252,7 @@ format_results <- function(suggestions_list) {
 #'
 #' @param results_df Tibble. Results from process_document().
 #' @param severity Character vector. Filter by severity (e.g., c("critical", "recommended")).
-#' @param edit_type Character vector. Filter by edit type (e.g., c("grammar", "spelling")).
+#' @param issue Character vector. Filter by issue description (exact match).
 #' @param pages Integer vector. Filter by page numbers.
 #' @param min_confidence Numeric. Minimum confidence threshold (0-1).
 #'
@@ -276,16 +265,16 @@ format_results <- function(suggestions_list) {
 #'   # Get only critical issues
 #'   critical <- filter_results(results, severity = "critical")
 #'
-#'   # Get grammar and spelling issues on pages 1-5
+#'   # Get specific issues on pages 1-5
 #'   subset <- filter_results(results,
-#'                           edit_type = c("grammar", "spelling"),
+#'                           issue = c("grammar error", "misspelling"),
 #'                           pages = 1:5)
 #' }
 #'
 #' @export
 filter_results <- function(results_df,
                           severity = NULL,
-                          edit_type = NULL,
+                          issue = NULL,
                           pages = NULL,
                           min_confidence = NULL) {
 
@@ -298,9 +287,9 @@ filter_results <- function(results_df,
       dplyr::filter(severity %in% !!severity)
   }
 
-  if (!is.null(edit_type)) {
+  if (!is.null(issue)) {
     filtered <- filtered %>%
-      dplyr::filter(edit_type %in% !!edit_type)
+      dplyr::filter(issue %in% !!issue)
   }
 
   if (!is.null(pages)) {
