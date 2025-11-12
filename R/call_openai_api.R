@@ -5,301 +5,25 @@
 #               Supports both text-only and multimodal (image) modes.
 # ==============================================================================
 
-#' Call OpenAI API for Copyediting (Text Mode)
-#'
-#' Sends a text-only request to the OpenAI API using the ellmer package and
-#' returns the parsed response. For documents with images, use call_openai_api_images()
-#' instead.
-#'
-#' @param user_message Character. The user message text from build_prompt().
-#' @param system_prompt Character. The system prompt with copyediting instructions.
-#'   If NULL, loads from config/llm_instructions.txt.
-#' @param model Character. OpenAI model to use (default: "gpt-4o").
-#'   Options: "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", etc.
-#' @param api_key Character. OpenAI API key. If NULL, will attempt to read
-#'   from OPENAI_API_KEY environment variable.
-#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
-#'   Lower values make output more focused and deterministic.
-#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: 3).
-#'
-#' @return A list with:
-#'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
-#'   \item{model}{Model used for the request}
-#'   \item{usage}{Token usage information (if available)}
-#'   \item{response_metadata}{Full response metadata}
-#'
-#' @examples
-#' \dontrun{
-#'   # Parse document and build prompt
-#'   doc <- parse_document(mode = "text")
-#'   prompts <- build_prompt(doc, "external client-facing", "Healthcare executives")
-#'
-#'   # Call API for first chunk
-#'   result <- call_openai_api(
-#'     user_message = prompts$user_message[1],
-#'     api_key = "sk-..."
-#'   )
-#'   # Parse document and build user messages
-#'   parsed <- parse_document("report.pdf", mode = "text")
-#'   user_msgs <- build_prompt(parsed, "external client-facing", "Healthcare executives")
-#'
-#'   # Load system prompt
-#'   system_prompt <- paste(readLines("config/system_prompt_template.txt", warn = FALSE), collapse = "\n")
-#'
-#'   # Construct messages array
-#'   messages <- list(
-#'     list(role = "system", content = system_prompt),
-#'     list(role = "user", content = user_msgs$user_message[1])
-#'   )
-#'
-#'   # Call API
-#'   result <- call_openai_api(messages, api_key = "sk-...")
-#'   suggestions <- result$suggestions
-#' }
-#'
-#' @export
-call_openai_api <- function(user_message,
-                           system_prompt = NULL,
-                           model = "gpt-4o",
-                           api_key = NULL,
-                           temperature = 0.3,
-                           max_retries = 3) {
+# Load configuration ----------------------------------------------------------
+source(file.path("R", "config.R"))
 
-  # Load required package
-  if (!requireNamespace("ellmer", quietly = TRUE)) {
-    stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
+
+# Helper Functions ------------------------------------------------------------
+
+#' Load System Prompt from Config File
+#'
+#' Loads the system prompt from config/system_prompt.txt. This function is
+#' used internally by both call_openai_api() and call_openai_api_images().
+#'
+#' @return Character string containing the system prompt.
+#' @keywords internal
+load_system_prompt <- function() {
+  system_prompt_path <- file.path("config", "system_prompt.txt")
+  if (!file.exists(system_prompt_path)) {
+    stop("System prompt file not found at config/system_prompt.txt")
   }
-
-  # Get API key
-  if (is.null(api_key)) {
-    api_key <- Sys.getenv("OPENAI_API_KEY")
-    if (api_key == "") {
-      stop("OpenAI API key not found. Provide via api_key parameter or set OPENAI_API_KEY environment variable.")
-    }
-  }
-
-  # Load system prompt if not provided
-  if (is.null(system_prompt)) {
-    system_prompt_path <- file.path("config", "llm_instructions.txt")
-    if (file.exists(system_prompt_path)) {
-      system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
-    } else {
-      stop("System prompt not provided and config/llm_instructions.txt not found")
-    }
-  }
-
-  # Validate inputs
-  if (!is.character(user_message) || length(user_message) != 1) {
-    stop("user_message must be a single character string")
-  }
-
-  if (temperature < 0 || temperature > 2) {
-    stop("temperature must be between 0 and 2")
-  }
-
-  # Create chat session with retry logic
-  attempt <- 1
-  last_error <- NULL
-
-  while (attempt <= max_retries) {
-    tryCatch({
-      # Create chat session
-      chat <- ellmer::chat_openai(
-        system_prompt = system_prompt,
-        model = model,
-        api_key = api_key,
-        api_args = list(
-          temperature = temperature,
-          response_format = list(type = "json_object")
-        )
-      )
-
-      # Send message and get response
-      response <- chat$chat(user_message)
-
-      # Parse the JSON response
-      result <- parse_json_response(response, model, chat)
-
-      return(result)
-
-    }, error = function(e) {
-      last_error <- e
-      if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
-        message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
-                       attempt, max_retries, attempt * 2))
-        Sys.sleep(attempt * 2)  # Exponential backoff
-      } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
-        message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
-                       attempt, max_retries, attempt * 2))
-        Sys.sleep(attempt * 2)
-      } else {
-        # Don't retry on client errors
-        stop(sprintf("API request failed: %s", e$message))
-      }
-    })
-
-    attempt <- attempt + 1
-  }
-
-  # If we get here, all retries failed
-  stop(sprintf("API request failed after %d attempts: %s", max_retries, last_error$message))
-}
-
-
-#' Call OpenAI API for Copyediting (Image Mode)
-#'
-#' Sends a multimodal request (text + images) to the OpenAI Vision API using
-#' the ellmer package and returns the parsed response. For text-only documents,
-#' use call_openai_api() instead.
-#'
-#' @param user_content List. The ellmer-formatted content from build_prompt_images().
-#'   This should be a list of ellmer content objects (strings and content_image_file).
-#' @param system_prompt Character. The system prompt with copyediting instructions.
-#'   If NULL, loads from config/llm_instructions.txt.
-#' @param model Character. Vision-capable OpenAI model to use (default: "gpt-4o").
-#'   Options: "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", etc. Must support vision.
-#' @param api_key Character. OpenAI API key. If NULL, will attempt to read
-#'   from OPENAI_API_KEY environment variable.
-#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: 0.3).
-#'   Lower values make output more focused and deterministic.
-#' @param max_tokens Integer. Maximum tokens in response (default: 16000).
-#'   Higher for image mode due to potentially more issues to report.
-#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: 3).
-#'
-#' @return A list with:
-#'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
-#'   \item{model}{Model used for the request}
-#'   \item{usage}{Token usage information (if available)}
-#'   \item{response_metadata}{Full response metadata}
-#'
-#' @details
-#' This function is designed for documents parsed in image mode (slide decks,
-#' presentations, or documents with visual elements like charts/diagrams).
-#' Images are handled by ellmer's content_image_file() helper. This is significantly
-#' more expensive than text mode - use only when visual elements matter.
-#'
-#' The user_content parameter should be a list-column from build_prompt_images()
-#' containing ellmer-formatted content (plain strings for text, content_image_file
-#' objects for images).
-#'
-#' @examples
-#' \dontrun{
-#'   # Parse document as images
-#'   slides <- parse_document(mode = "images")
-#'
-#'   # Build multimodal prompt (returns ellmer format)
-#'   prompts <- build_prompt_images(
-#'     slides,
-#'     "external client-facing",
-#'     "Healthcare executives"
-#'   )
-#'
-#'   # Call API for first chunk
-#'   result <- call_openai_api_images(
-#'     user_content = prompts$user_message[[1]],
-#'     api_key = "sk-..."
-#'   )
-#'   suggestions <- result$suggestions
-#' }
-#'
-#' @export
-call_openai_api_images <- function(user_content,
-                                  system_prompt = NULL,
-                                  model = "gpt-4o",
-                                  api_key = NULL,
-                                  temperature = 0.3,
-                                  max_tokens = 16000,
-                                  max_retries = 3) {
-
-  # Load required package
-  if (!requireNamespace("ellmer", quietly = TRUE)) {
-    stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
-  }
-
-  # Get API key
-  if (is.null(api_key)) {
-    api_key <- Sys.getenv("OPENAI_API_KEY")
-    if (api_key == "") {
-      stop("OpenAI API key not found. Provide via api_key parameter or set OPENAI_API_KEY environment variable.")
-    }
-  }
-
-  # Load system prompt if not provided
-  if (is.null(system_prompt)) {
-    system_prompt_path <- file.path("config", "llm_instructions.txt")
-    if (file.exists(system_prompt_path)) {
-      system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
-    } else {
-      stop("System prompt not provided and config/llm_instructions.txt not found")
-    }
-  }
-
-  # Validate inputs
-  if (!is.list(user_content) || length(user_content) == 0) {
-    stop("user_content must be a non-empty list of ellmer content objects from build_prompt_images()")
-  }
-
-  if (temperature < 0 || temperature > 2) {
-    stop("temperature must be between 0 and 2")
-  }
-
-  # Validate that model supports vision
-  vision_models <- c("gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini")
-  if (!model %in% vision_models) {
-    warning(sprintf(
-      "Model '%s' may not support vision. Recommended models: %s",
-      model, paste(vision_models, collapse = ", ")
-    ))
-  }
-
-  # Create chat session with retry logic
-  attempt <- 1
-  last_error <- NULL
-
-  while (attempt <= max_retries) {
-    tryCatch({
-      # Create chat session
-      chat <- ellmer::chat_openai(
-        system_prompt = system_prompt,
-        model = model,
-        api_key = api_key,
-        api_args = list(
-          temperature = temperature,
-          max_tokens = max_tokens,
-          response_format = list(type = "json_object")
-        )
-      )
-
-      # Send multimodal message and get response
-      # user_content is already in ellmer format (strings + content_image_file objects)
-      response <- do.call(chat$chat, user_content)
-
-      # Parse the JSON response
-      result <- parse_json_response(response, model, chat)
-
-      return(result)
-
-    }, error = function(e) {
-      last_error <- e
-      if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
-        message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
-                       attempt, max_retries, attempt * 2))
-        Sys.sleep(attempt * 2)  # Exponential backoff
-      } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
-        message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
-                       attempt, max_retries, attempt * 2))
-        Sys.sleep(attempt * 2)
-      } else {
-        # Don't retry on client errors
-        stop(sprintf("API request failed: %s", e$message))
-      }
-    })
-
-    attempt <- attempt + 1
-  }
-
-  # If we get here, all retries failed
-  stop(sprintf("API request failed after %d attempts: %s", max_retries, last_error$message))
+  paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
 }
 
 
@@ -348,9 +72,9 @@ parse_json_response <- function(response, model, chat) {
   response_metadata <- tryCatch({
     turn <- chat$last_turn()
     list(
-      finish_reason = turn$finish_reason %||% "unknown",
-      created = turn$created %||% Sys.time(),
-      id = turn$id %||% NA
+      finish_reason = if (is.null(turn$finish_reason)) "unknown" else turn$finish_reason,
+      created = if (is.null(turn$created)) Sys.time() else turn$created,
+      id = if (is.null(turn$id)) NA else turn$id
     )
   }, error = function(e) {
     list(
@@ -372,92 +96,269 @@ parse_json_response <- function(response, model, chat) {
 }
 
 
-#' Null-coalescing operator
+# Main Functions --------------------------------------------------------------
+
+#' Call OpenAI API for Copyediting (Text Mode)
 #'
-#' Returns left-hand side if not NULL, otherwise returns right-hand side.
+#' Sends a text-only request to the OpenAI API using the ellmer package and
+#' returns the parsed response. For documents with images, use call_openai_api_images()
+#' instead.
 #'
-#' @param x First value
-#' @param y Default value if x is NULL
+#' @param user_message Character. The user message text from build_prompt().
+#' @param system_prompt Character. The system prompt with copyediting instructions.
+#'   If NULL, loads from config/system_prompt.txt.
+#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: DEFAULT_TEMPERATURE from config.R).
+#'   Lower values make output more focused and deterministic.
+#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: MAX_RETRY_ATTEMPTS from config.R).
 #'
-#' @return x if not NULL, otherwise y
-#' @keywords internal
-`%||%` <- function(x, y) {
-  if (is.null(x)) y else x
+#' @details
+#' This function uses the model specified in MODEL_TEXT (from R/config.R).
+#' To change the model, edit MODEL_TEXT in R/config.R.
+#'
+#' @return A list with:
+#'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
+#'   \item{model}{Model used for the request}
+#'   \item{usage}{Token usage information (if available)}
+#'   \item{response_metadata}{Full response metadata}
+#'
+#' @examples
+#' \dontrun{
+#'   # Parse document and build prompt
+#'   doc <- parse_document(mode = "text")
+#'   prompts <- build_prompt(doc, "external client-facing", "Healthcare executives")
+#'
+#'   # Call API for first chunk (requires OPENAI_API_KEY environment variable)
+#'   result <- call_openai_api(
+#'     user_message = prompts$user_message[1]
+#'   )
+#'   # Parse document and build user messages
+#'   parsed <- parse_document("report.pdf", mode = "text")
+#'   user_msgs <- build_prompt(parsed, "external client-facing", "Healthcare executives")
+#'
+#'   # Load system prompt
+#'   system_prompt <- paste(readLines("config/system_prompt.txt", warn = FALSE), collapse = "\n")
+#'
+#'   # Call API (requires OPENAI_API_KEY environment variable)
+#'   result <- call_openai_api(
+#'     user_message = user_msgs$user_message[1],
+#'     system_prompt = system_prompt
+#'   )
+#'   suggestions <- result$suggestions
+#' }
+#'
+#' @export
+call_openai_api <- function(user_message,
+                           system_prompt = NULL,
+                           temperature = DEFAULT_TEMPERATURE,
+                           max_retries = MAX_RETRY_ATTEMPTS) {
+
+  # Load required package
+  if (!requireNamespace("ellmer", quietly = TRUE)) {
+    stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
+  }
+
+  # Get API key from environment variable
+  api_key <- Sys.getenv("OPENAI_API_KEY")
+  if (api_key == "") {
+    stop("OpenAI API key not found. Set OPENAI_API_KEY in your .Renviron file or use Sys.setenv(OPENAI_API_KEY = 'your-key').")
+  }
+
+  # Load system prompt if not provided
+  if (is.null(system_prompt)) {
+    system_prompt <- load_system_prompt()
+  }
+
+  # Validate inputs
+  if (!is.character(user_message) || length(user_message) != 1) {
+    stop("user_message must be a single character string")
+  }
+
+  if (temperature < 0 || temperature > 2) {
+    stop("temperature must be between 0 and 2")
+  }
+
+  # Create chat session with retry logic
+  attempt <- 1
+  last_error <- NULL
+
+  while (attempt <= max_retries) {
+    tryCatch({
+      # Create chat session
+      chat <- ellmer::chat_openai(
+        system_prompt = system_prompt,
+        model = MODEL_TEXT,
+        api_key = api_key,
+        api_args = list(
+          temperature = temperature,
+          response_format = list(type = "json_object")
+        )
+      )
+
+      # Send message and get response
+      response <- chat$chat(user_message)
+
+      # Parse the JSON response
+      result <- parse_json_response(response, MODEL_TEXT, chat)
+
+      return(result)
+
+    }, error = function(e) {
+      last_error <- e
+      if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
+        message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
+                       attempt, max_retries, attempt * 2))
+        Sys.sleep(attempt * 2)  # Exponential backoff
+      } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
+        message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
+                       attempt, max_retries, attempt * 2))
+        Sys.sleep(attempt * 2)
+      } else {
+        # Don't retry on client errors
+        stop(sprintf("API request failed: %s", e$message))
+      }
+    })
+
+    attempt <- attempt + 1
+  }
+
+  # If we get here, all retries failed
+  stop(sprintf("API request failed after %d attempts: %s", max_retries, last_error$message))
 }
 
 
-#' Get Available OpenAI Models
+#' Call OpenAI API for Copyediting (Image Mode)
 #'
-#' Helper function to show commonly used OpenAI models for copyediting.
-#' Lists models for both text-only and vision-capable (image) modes.
+#' Sends a multimodal request (text + images) to the OpenAI Vision API using
+#' the ellmer package and returns the parsed response. For text-only documents,
+#' use call_openai_api() instead.
 #'
-#' @param mode Character. Show models for "text", "images", or "all" (default: "all").
+#' @param user_content List. The ellmer-formatted content from build_prompt_images().
+#'   This should be a list of ellmer content objects (strings and content_image_file).
+#' @param system_prompt Character. The system prompt with copyediting instructions.
+#'   If NULL, loads from config/system_prompt.txt.
+#' @param temperature Numeric. Sampling temperature between 0 and 2 (default: DEFAULT_TEMPERATURE from config.R).
+#'   Lower values make output more focused and deterministic.
+#' @param max_tokens Integer. Maximum tokens in response (default: MAX_TOKENS_IMAGES from config.R).
+#'   Higher for image mode due to potentially more issues to report.
+#' @param max_retries Integer. Maximum number of retry attempts for failed requests (default: MAX_RETRY_ATTEMPTS from config.R).
 #'
-#' @return Character vector of model names (invisibly).
+#' @details
+#' This function uses the model specified in MODEL_IMAGES (from R/config.R).
+#' To change the model, edit MODEL_IMAGES in R/config.R.
+#'
+#' @return A list with:
+#'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
+#'   \item{model}{Model used for the request}
+#'   \item{usage}{Token usage information (if available)}
+#'   \item{response_metadata}{Full response metadata}
+#'
+#' @details
+#' This function is designed for documents parsed in image mode (slide decks,
+#' presentations, or documents with visual elements like charts/diagrams).
+#' Images are handled by ellmer's content_image_file() helper. This is significantly
+#' more expensive than text mode - use only when visual elements matter.
+#'
+#' The user_content parameter should be a list-column from build_prompt_images()
+#' containing ellmer-formatted content (plain strings for text, content_image_file
+#' objects for images).
 #'
 #' @examples
-#' get_available_models()
-#' get_available_models("text")
-#' get_available_models("images")
+#' \dontrun{
+#'   # Parse document as images
+#'   slides <- parse_document(mode = "images")
+#'
+#'   # Build multimodal prompt (returns ellmer format)
+#'   prompts <- build_prompt_images(
+#'     slides,
+#'     "external client-facing",
+#'     "Healthcare executives"
+#'   )
+#'
+#'   # Call API for first chunk (requires OPENAI_API_KEY environment variable)
+#'   result <- call_openai_api_images(
+#'     user_content = prompts$user_message[[1]]
+#'   )
+#'   suggestions <- result$suggestions
+#' }
 #'
 #' @export
-get_available_models <- function(mode = c("all", "text", "images")) {
+call_openai_api_images <- function(user_content,
+                                  system_prompt = NULL,
+                                  temperature = DEFAULT_TEMPERATURE,
+                                  max_tokens = MAX_TOKENS_IMAGES,
+                                  max_retries = MAX_RETRY_ATTEMPTS) {
 
-  mode <- match.arg(mode)
-
-  text_models <- c(
-    "gpt-4o",           # Recommended: Best balance of performance and cost
-    "gpt-4o-mini",      # Budget option: Cheaper and faster
-    "gpt-4-turbo",      # Previous generation
-    "o1",               # Reasoning model (higher cost)
-    "o1-mini"           # Smaller reasoning model
-  )
-
-  vision_models <- c(
-    "gpt-4o",           # Recommended: Best for vision tasks
-    "gpt-4o-mini",      # Budget option with vision support
-    "gpt-4-turbo",      # Previous generation with vision
-    "o1",               # Reasoning model with vision
-    "o1-mini"           # Smaller reasoning model with vision
-  )
-
-  if (mode == "text") {
-    cat("OpenAI models for text-only copyediting:\n")
-    cat("(Use with call_openai_api())\n\n")
-    for (i in seq_along(text_models)) {
-      cat(sprintf("  %d. %s\n", i, text_models[i]))
-    }
-    cat("\nRecommended: gpt-4o (best balance of quality and cost)\n")
-    return(invisible(text_models))
-
-  } else if (mode == "images") {
-    cat("Vision-capable OpenAI models for image-based copyediting:\n")
-    cat("(Use with call_openai_api_images())\n\n")
-    for (i in seq_along(vision_models)) {
-      cat(sprintf("  %d. %s\n", i, vision_models[i]))
-    }
-    cat("\nRecommended: gpt-4o (best for reading text in images)\n")
-    cat("Note: Image mode is significantly more expensive than text mode.\n")
-    return(invisible(vision_models))
-
-  } else {
-    # Show all
-    cat("OpenAI models for copyediting:\n\n")
-
-    cat("TEXT MODE (call_openai_api):\n")
-    for (i in seq_along(text_models)) {
-      cat(sprintf("  %d. %s\n", i, text_models[i]))
-    }
-
-    cat("\nIMAGE MODE (call_openai_api_images):\n")
-    for (i in seq_along(vision_models)) {
-      cat(sprintf("  %d. %s\n", i, vision_models[i]))
-    }
-
-    cat("\nRecommended: gpt-4o for both modes\n")
-    cat("Note: Image mode is significantly more expensive. Use only for visual documents.\n")
-    cat("\nCheck OpenAI documentation for latest pricing and availability.\n")
-
-    return(invisible(list(text = text_models, images = vision_models)))
+  # Load required package
+  if (!requireNamespace("ellmer", quietly = TRUE)) {
+    stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
   }
+
+  # Get API key from environment variable
+  api_key <- Sys.getenv("OPENAI_API_KEY")
+  if (api_key == "") {
+    stop("OpenAI API key not found. Set OPENAI_API_KEY in your .Renviron file or use Sys.setenv(OPENAI_API_KEY = 'your-key').")
+  }
+
+  # Load system prompt if not provided
+  if (is.null(system_prompt)) {
+    system_prompt <- load_system_prompt()
+  }
+
+  # Validate inputs
+  if (!is.list(user_content) || length(user_content) == 0) {
+    stop("user_content must be a non-empty list of ellmer content objects from build_prompt_images()")
+  }
+
+  if (temperature < 0 || temperature > 2) {
+    stop("temperature must be between 0 and 2")
+  }
+
+  # Create chat session with retry logic
+  attempt <- 1
+  last_error <- NULL
+
+  while (attempt <= max_retries) {
+    tryCatch({
+      # Create chat session
+      chat <- ellmer::chat_openai(
+        system_prompt = system_prompt,
+        model = MODEL_IMAGES,
+        api_key = api_key,
+        api_args = list(
+          temperature = temperature,
+          max_tokens = max_tokens,
+          response_format = list(type = "json_object")
+        )
+      )
+
+      # Send multimodal message and get response
+      # user_content is already in ellmer format (strings + content_image_file objects)
+      response <- do.call(chat$chat, user_content)
+
+      # Parse the JSON response
+      result <- parse_json_response(response, MODEL_IMAGES, chat)
+
+      return(result)
+
+    }, error = function(e) {
+      last_error <- e
+      if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
+        message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
+                       attempt, max_retries, attempt * 2))
+        Sys.sleep(attempt * 2)  # Exponential backoff
+      } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
+        message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
+                       attempt, max_retries, attempt * 2))
+        Sys.sleep(attempt * 2)
+      } else {
+        # Don't retry on client errors
+        stop(sprintf("API request failed: %s", e$message))
+      }
+    })
+
+    attempt <- attempt + 1
+  }
+
+  # If we get here, all retries failed
+  stop(sprintf("API request failed after %d attempts: %s", max_retries, last_error$message))
 }

@@ -1,3 +1,7 @@
+# Load configuration ----------------------------------------------------------
+source(file.path("R", "config.R"))
+
+
 #' Get Default System Prompt
 #'
 #' Returns the default system prompt with instructions for copyediting.
@@ -40,11 +44,8 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 #' @param document_type Character. Type of document (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param api_key Character. OpenAI API key. If NULL, reads from OPENAI_API_KEY
-#'   environment variable.
-#' @param model Character. OpenAI model to use (default: "gpt-4").
-#' @param temperature Numeric. Sampling temperature (default: 0.3).
-#' @param context_window Integer. Maximum tokens per API call (default: 400000).
+#' @param temperature Numeric. Sampling temperature (default: DEFAULT_TEMPERATURE from config.R).
+#' @param context_window Integer. Maximum tokens per API call (default: CONTEXT_WINDOW_TEXT from config.R).
 #' @param process_pages Integer vector. Specific pages to process. If NULL,
 #'   processes all pages (default: NULL).
 #' @param verbose Logical. Print progress messages (default: TRUE).
@@ -63,12 +64,11 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 #'
 #' @examples
 #' \dontrun{
-#'   # Process entire document
+#'   # Process entire document (requires OPENAI_API_KEY environment variable)
 #'   results <- process_document(
 #'     file_path = "report.pdf",
 #'     document_type = "external client-facing",
-#'     audience = "Healthcare executives",
-#'     api_key = Sys.getenv("OPENAI_API_KEY")
+#'     audience = "Healthcare executives"
 #'   )
 #'
 #'   # Process specific pages only
@@ -87,10 +87,8 @@ IMPORTANT: Return ONLY the JSON array, with no additional text before or after. 
 process_document <- function(file_path,
                              document_type,
                              audience,
-                             api_key = NULL,
-                             model = "gpt-4",
-                             temperature = 0.3,
-                             context_window = 400000,
+                             temperature = DEFAULT_TEMPERATURE,
+                             context_window = CONTEXT_WINDOW_TEXT,
                              process_pages = NULL,
                              verbose = TRUE,
                              delay_between_chunks = 1) {
@@ -145,9 +143,9 @@ process_document <- function(file_path,
   }
 
   # Load system prompt
-  system_prompt_path <- file.path("config", "system_prompt_template.txt")
+  system_prompt_path <- file.path("config", "system_prompt.txt")
   if (file.exists(system_prompt_path)) {
-    if (verbose) cat("Loading system prompt from config/system_prompt_template.txt\n")
+    if (verbose) cat("Loading system prompt from config/system_prompt.txt\n")
     system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
   } else {
     if (verbose) cat("Using default system prompt\n")
@@ -160,8 +158,7 @@ process_document <- function(file_path,
     parsed_document = parsed_doc,
     document_type = document_type,
     audience = audience,
-    context_window = context_window,
-    model = model
+    context_window = context_window
   )
 
   num_chunks <- nrow(user_message_chunks)
@@ -183,18 +180,11 @@ process_document <- function(file_path,
                   chunk$page_start, chunk$page_end))
     }
 
-    # Construct messages array with system prompt and user message
-    messages <- list(
-      list(role = "system", content = system_prompt),
-      list(role = "user", content = chunk$user_message)
-    )
-
     # Call API
     tryCatch({
       result <- call_openai_api(
-        messages = messages,
-        model = model,
-        api_key = api_key,
+        user_message = chunk$user_message,
+        system_prompt = system_prompt,
         temperature = temperature
       )
 
@@ -244,7 +234,7 @@ process_document <- function(file_path,
   attr(results_df, "audience") <- audience
   attr(results_df, "pages_processed") <- if (!is.null(process_pages)) process_pages else seq_len(total_pages)
   attr(results_df, "num_chunks") <- num_chunks
-  attr(results_df, "model") <- model
+  attr(results_df, "model") <- MODEL_TEXT  # Model used for text-mode copyediting (from config.R)
   attr(results_df, "api_metadata") <- api_metadata
   attr(results_df, "processed_at") <- Sys.time()
 
@@ -330,12 +320,16 @@ export_results <- function(results_df, output_path, include_metadata = TRUE) {
   if (include_metadata && !is.null(attr(results_df, "document_path"))) {
 
     # Create metadata data frame
+    doc_type <- attr(results_df, "document_type")
+    aud <- attr(results_df, "audience")
+    chunks <- attr(results_df, "num_chunks")
+
     metadata <- data.frame(
       document_path = attr(results_df, "document_path"),
-      document_type = attr(results_df, "document_type") %||% NA,
-      audience = attr(results_df, "audience") %||% NA,
+      document_type = if (is.null(doc_type)) NA else doc_type,
+      audience = if (is.null(aud)) NA else aud,
       pages_processed = paste(attr(results_df, "pages_processed"), collapse = ", "),
-      num_chunks = attr(results_df, "num_chunks") %||% 1,
+      num_chunks = if (is.null(chunks)) 1 else chunks,
       model = attr(results_df, "model"),
       total_suggestions = nrow(results_df),
       processed_at = as.character(attr(results_df, "processed_at")),

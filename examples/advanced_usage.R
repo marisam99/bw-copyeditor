@@ -135,7 +135,7 @@ user_message_chunks <- build_prompt(
 cat(sprintf("Document split into %d chunk(s)\n", nrow(user_message_chunks)))
 
 # 3. Load system prompt
-system_prompt_path <- "config/system_prompt_template.txt"
+system_prompt_path <- "config/system_prompt.txt"
 system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
 
 # 4. Process first chunk manually

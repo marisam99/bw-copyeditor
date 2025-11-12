@@ -50,19 +50,11 @@ source("R/call_openai_api.R")
 source("R/process_document.R")
 source("R/format_results.R")
 
-# Process a text-heavy document (default mode)
+# Process a text-heavy document (uses gpt-4o automatically)
 results <- process_document(
   file_path = "path/to/report.pdf",
-  project_context = "Annual report for Client X",
-  model = "gpt-4"
-)
-
-# Process a slide deck with images
-slides_results <- process_document(
-  file_path = "path/to/presentation.pdf",
-  mode = "images",
-  project_context = "Q4 presentation",
-  model = "gpt-4-vision"
+  document_type = "external client-facing",
+  audience = "Healthcare executives"
 )
 
 # View results
@@ -98,9 +90,9 @@ Constructs the messages array for OpenAI API requests.
   - Adds project-specific context
   - Helper function to load prompts from files
 
-### 3. `call_openai_api(messages, model, api_key, ...)`
+### 3. `call_openai_api(user_message, system_prompt, model, ...)`
 Sends requests to OpenAI API with error handling and retry logic.
-- **Input**: Messages, model name, API key, parameters
+- **Input**: User message, system prompt, model name, parameters (API key read from environment)
 - **Output**: Parsed JSON response with suggestions
 - **Features**:
   - Exponential backoff for rate limiting
@@ -195,25 +187,6 @@ results <- process_document(
 )
 ```
 
-### Different Models
-
-```r
-# Use GPT-4 Turbo (faster, cheaper)
-results <- process_document(
-  file_path = "document.pdf",
-  project_context = "Report",
-  model = "gpt-4-turbo-preview",
-  temperature = 0.2
-)
-
-# Use GPT-3.5 Turbo (fastest, cheapest)
-results <- process_document(
-  file_path = "document.pdf",
-  project_context = "Report",
-  model = "gpt-3.5-turbo"
-)
-```
-
 ### Batch Processing
 
 ```r
@@ -222,7 +195,8 @@ documents <- c("report1.pdf", "report2.pdf", "report3.pdf")
 all_results <- lapply(documents, function(doc) {
   process_document(
     file_path = doc,
-    project_context = "Quarterly reports"
+    document_type = "external client-facing",
+    audience = "Quarterly stakeholders"
   )
 })
 

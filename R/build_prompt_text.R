@@ -7,11 +7,8 @@
 #               Uses rtiktoken for accurate token counting matching OpenAI's tokenizers.
 # ==============================================================================
 
-# Configuration ---------------------------------------------------------------
-# Adjust these constants to change model settings and behavior
-
-CONTEXT_WINDOW <- 400000        # Maximum tokens per request (400k for gpt-4)
-MODEL <- "gpt-4"                # Model name per OpenAPI API documentation, for tokenization
+# Load configuration ----------------------------------------------------------
+source(file.path("R", "config.R"))
 
 # Helper Functions ------------------------------------------------------------
 
@@ -226,8 +223,8 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #' Token counting uses the rtiktoken package for exact token counts
 #' matching the specified model's tokenizer.
 #'
-#' Model settings (context window and model name) are configured as constants
-#' at the top of this script and can be adjusted there as needed.
+#' Model settings (context window and model name) are configured in R/config.R
+#' and can be adjusted there as needed.
 #'
 #' The returned user_message does NOT include the system prompt - that should be
 #' added separately by the caller.
@@ -253,9 +250,9 @@ build_prompt_text <- function(parsed_document,
                         deliverable_type,
                         audience) {
 
-  # Use constants defined at top of script
-  context_window <- CONTEXT_WINDOW
-  model <- MODEL
+  # Use constants from R/config.R
+  context_window <- CONTEXT_WINDOW_TEXT
+  model <- MODEL_TEXT
 
   # Validate inputs
   if (missing(parsed_document) || !inherits(parsed_document, "data.frame")) {
@@ -282,7 +279,7 @@ build_prompt_text <- function(parsed_document,
   # Build header and format all pages
   header <- context_header(deliverable_type, audience)
   all_pages <- combine_pages(parsed_document)
-  system_prompt_path <- file.path("config", "llm_instructions.txt")
+  system_prompt_path <- file.path("config", "system_prompt.txt")
   system_prompt <- paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
 
   # Construct full inputs
