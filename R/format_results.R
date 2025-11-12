@@ -28,24 +28,6 @@ create_empty_results_df <- function() {
 }
 
 
-#' Get Field from List
-#'
-#' Safely extract a field from a list with a default value.
-#'
-#' @param lst List.
-#' @param field Character. Field name.
-#' @param default Default value if field is missing or NULL.
-#'
-#' @return Field value or default.
-#' @keywords internal
-get_field <- function(lst, field, default) {
-  if (field %in% names(lst) && !is.null(lst[[field]])) {
-    return(lst[[field]])
-  }
-  return(default)
-}
-
-
 #' Convert List to Data Frame
 #'
 #' Converts the nested list structure from API to a flat tibble.
@@ -61,16 +43,16 @@ convert_list_to_df <- function(suggestions_list) {
 
     # Handle both flat and nested structures
     if (is.list(suggestion)) {
-      # Extract fields with defaults
+      # Extract fields with defaults using purrr::pluck
       tibble::tibble(
-        page_number = as.integer(get_field(suggestion, "page_number", NA)),
-        location = as.character(get_field(suggestion, "location", "")),
-        original_text = as.character(get_field(suggestion, "original_text", "")),
-        suggested_edit = as.character(get_field(suggestion, "suggested_edit", "")),
-        edit_type = as.character(get_field(suggestion, "edit_type", "other")),
-        reason = as.character(get_field(suggestion, "reason", "")),
-        severity = as.character(get_field(suggestion, "severity", "recommended")),
-        confidence = as.numeric(get_field(suggestion, "confidence", 0.5))
+        page_number = as.integer(purrr::pluck(suggestion, "page_number", .default = NA)),
+        location = as.character(purrr::pluck(suggestion, "location", .default = "")),
+        original_text = as.character(purrr::pluck(suggestion, "original_text", .default = "")),
+        suggested_edit = as.character(purrr::pluck(suggestion, "suggested_edit", .default = "")),
+        edit_type = as.character(purrr::pluck(suggestion, "edit_type", .default = "other")),
+        reason = as.character(purrr::pluck(suggestion, "reason", .default = "")),
+        severity = as.character(purrr::pluck(suggestion, "severity", .default = "recommended")),
+        confidence = as.numeric(purrr::pluck(suggestion, "confidence", .default = 0.5))
       )
     } else {
       # Skip invalid entries
