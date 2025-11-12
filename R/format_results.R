@@ -248,6 +248,11 @@ format_results <- function(suggestions_list) {
   # Sort by page number and severity
   results_df <- sort_results(results_df)
 
+  # Inform user if no results found
+  if (nrow(results_df) == 0) {
+    message("No copyediting suggestions found.")
+  }
+
   return(results_df)
 }
 
