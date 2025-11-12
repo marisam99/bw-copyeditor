@@ -22,7 +22,8 @@ create_empty_results_df <- function() {
     suggested_edit = character(0),
     rationale = character(0),
     severity = character(0),
-    confidence = numeric(0)
+    confidence = numeric(0),
+    is_valid = logical(0)
   )
 }
 
@@ -74,11 +75,11 @@ convert_list_to_df <- function(suggestions_list) {
 
 #' Validate Results
 #'
-#' Validates and cleans the results tibble.
+#' Flags rows with missing critical fields instead of removing them.
 #'
 #' @param results_df Tibble.
 #'
-#' @return Validated tibble.
+#' @return Tibble with is_valid column added.
 #' @keywords internal
 validate_results <- function(results_df) {
 
@@ -86,103 +87,17 @@ validate_results <- function(results_df) {
     return(results_df)
   }
 
-  # Ensure proper types and standardize values using dplyr::mutate
+  # Flag rows with missing critical fields
   results_df <- results_df %>%
     dplyr::mutate(
-      # Ensure proper types
-      page_number = as.integer(page_number),
-      confidence = as.numeric(confidence),
-      # Clamp confidence to [0, 1]
-      confidence = dplyr::case_when(
-        confidence < 0 ~ 0,
-        confidence > 1 ~ 1,
-        TRUE ~ confidence
-      ),
-      # Standardize severity values
-      severity = tolower(trimws(severity)),
-      severity = dplyr::if_else(
-        severity %in% c("critical", "recommended", "optional"),
-        severity,
-        "recommended"
-      )
+      is_valid = !is.na(page_number) & !is.na(original_text) & original_text != ""
     )
 
-  # Trim whitespace from all character columns
-  char_cols <- names(results_df)[sapply(results_df, is.character)]
-  results_df <- results_df %>%
-    dplyr::mutate(dplyr::across(dplyr::all_of(char_cols), trimws))
-
-  # Remove rows with missing critical fields
-  n_before <- nrow(results_df)
-  results_df <- results_df %>%
-    dplyr::filter(!is.na(page_number), !is.na(original_text), original_text != "")
-
-  n_removed <- n_before - nrow(results_df)
-  if (n_removed > 0) {
-    warning(sprintf("Removed %d rows with missing critical fields", n_removed))
+  # Warn user if any invalid rows found
+  n_invalid <- sum(!results_df$is_valid)
+  if (n_invalid > 0) {
+    warning(sprintf("Found %d rows with missing critical fields (page_number or original_text). These rows are flagged with is_valid = FALSE.", n_invalid))
   }
-
-  return(results_df)
-}
-
-
-#' Order Columns
-#'
-#' Reorders columns in a standard way.
-#'
-#' @param results_df Tibble.
-#'
-#' @return Tibble with ordered columns.
-#' @keywords internal
-order_columns <- function(results_df) {
-
-  # Define preferred column order
-  preferred_order <- c(
-    "page_number",
-    "issue",
-    "original_text",
-    "suggested_edit",
-    "rationale",
-    "severity",
-    "confidence"
-  )
-
-  # Get columns that exist in preferred order, then add any extras
-  results_df <- results_df %>%
-    dplyr::select(
-      dplyr::any_of(preferred_order),
-      dplyr::everything()
-    )
-
-  return(results_df)
-}
-
-
-#' Sort Results
-#'
-#' Sorts results by page number and severity.
-#'
-#' @param results_df Tibble.
-#'
-#' @return Sorted tibble.
-#' @keywords internal
-sort_results <- function(results_df) {
-
-  if (nrow(results_df) == 0) {
-    return(results_df)
-  }
-
-  # Define severity order for sorting
-  severity_levels <- c("critical", "recommended", "optional")
-
-  # Sort by page number, then severity using dplyr::arrange
-  results_df <- results_df %>%
-    dplyr::mutate(
-      severity_order = match(severity, severity_levels),
-      severity_order = dplyr::if_else(is.na(severity_order), 99L, as.integer(severity_order))
-    ) %>%
-    dplyr::arrange(page_number, severity_order) %>%
-    dplyr::select(-severity_order)
 
   return(results_df)
 }
@@ -205,6 +120,7 @@ sort_results <- function(results_df) {
 #'   \item{rationale}{Character - explanation for the edit}
 #'   \item{severity}{Character - critical/recommended/optional}
 #'   \item{confidence}{Numeric - 0 to 1}
+#'   \item{is_valid}{Logical - TRUE if row has required fields}
 #'
 #' @examples
 #' \dontrun{
@@ -228,14 +144,13 @@ format_results <- function(suggestions_list) {
   # Convert list to tibble
   results_df <- convert_list_to_df(suggestions_list)
 
-  # Validate and clean
+  # Add validation flag
   results_df <- validate_results(results_df)
 
-  # Order columns
-  results_df <- order_columns(results_df)
-
-  # Sort by page number and severity
-  results_df <- sort_results(results_df)
+  # Order columns (preserve API response order, just reorder columns)
+  results_df <- results_df %>%
+    dplyr::select(page_number, issue, original_text, suggested_edit,
+                  rationale, severity, confidence, is_valid)
 
   # Inform user if no results found
   if (nrow(results_df) == 0) {
@@ -243,64 +158,4 @@ format_results <- function(suggestions_list) {
   }
 
   return(results_df)
-}
-
-
-#' Filter Results
-#'
-#' Helper function to filter results by various criteria.
-#'
-#' @param results_df Tibble. Results from process_document().
-#' @param severity Character vector. Filter by severity (e.g., c("critical", "recommended")).
-#' @param issue Character vector. Filter by issue description (exact match).
-#' @param pages Integer vector. Filter by page numbers.
-#' @param min_confidence Numeric. Minimum confidence threshold (0-1).
-#'
-#' @return Filtered tibble.
-#'
-#' @examples
-#' \dontrun{
-#'   results <- process_document("report.pdf")
-#'
-#'   # Get only critical issues
-#'   critical <- filter_results(results, severity = "critical")
-#'
-#'   # Get specific issues on pages 1-5
-#'   subset <- filter_results(results,
-#'                           issue = c("grammar error", "misspelling"),
-#'                           pages = 1:5)
-#' }
-#'
-#' @export
-filter_results <- function(results_df,
-                          severity = NULL,
-                          issue = NULL,
-                          pages = NULL,
-                          min_confidence = NULL) {
-
-  # Start with full dataset
-  filtered <- results_df
-
-  # Apply filters using dplyr::filter
-  if (!is.null(severity)) {
-    filtered <- filtered %>%
-      dplyr::filter(severity %in% !!severity)
-  }
-
-  if (!is.null(issue)) {
-    filtered <- filtered %>%
-      dplyr::filter(issue %in% !!issue)
-  }
-
-  if (!is.null(pages)) {
-    filtered <- filtered %>%
-      dplyr::filter(page_number %in% !!pages)
-  }
-
-  if (!is.null(min_confidence)) {
-    filtered <- filtered %>%
-      dplyr::filter(confidence >= !!min_confidence)
-  }
-
-  return(filtered)
 }
