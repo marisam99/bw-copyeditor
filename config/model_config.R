@@ -22,14 +22,14 @@ MAX_RETRY_ATTEMPTS <- 3
 # Text Mode Configuration -----------------------------------------------------
 # Settings for text-only copyediting (publications, reports, text-heavy documents)
 
-#' Model for text-only copyediting
-#' GPT-5 is a reasoning model with excellent performance
-#' Released August 2025
-MODEL_TEXT <- "gpt-5"
+#' Model Options: 
+MODEL_TEXT <- "gpt-5" # GPT-5 is a reasoning model with excellent performance
 
 #' Maximum tokens per API request for text mode
-#' GPT-5 supports large context windows
 CONTEXT_WINDOW_TEXT <- 400000
+
+#' Reasoning level (minimal, low, medium, high)
+REASONING_LEVEL <- "minimal" # GPT-5 only
 
 
 # Image Mode Configuration ----------------------------------------------------

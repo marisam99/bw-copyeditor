@@ -7,9 +7,6 @@
 #               Uses fixed token estimates for image processing costs.
 # ==============================================================================
 
-# Load configuration ----------------------------------------------------------
-source(file.path("config", "model_config.R"))
-
 # Helper Functions ------------------------------------------------------------
 
 #' Project Context Header
@@ -81,12 +78,8 @@ build_multimodal_content <- function(parsed_document, deliverable_type, audience
   # Start with text context (header only, system prompt loaded separately)
   header <- context_header(deliverable_type, audience)
 
-  # Initialize content array with intro text (plain string in ellmer format)
-  content <- list(intro_text)
-  # Initialize content array with header
-  content <- list(
-    list(type = "text", text = header)
-  )
+  # Initialize content list with header
+  content <- list(header)
 
   # Add each page as an image
   for (i in seq_len(nrow(parsed_document))) {
@@ -100,7 +93,7 @@ build_multimodal_content <- function(parsed_document, deliverable_type, audience
     # ellmer::content_image_file() handles encoding automatically
     content[[length(content) + 1]] <- ellmer::content_image_file(
       path = image_path,
-      detail = detail
+      resize = DETAIL
     )
   }
 
@@ -149,7 +142,7 @@ chunk_by_images <- function(parsed_document,
     page_end <- min(i * images_per_chunk, total_pages)
 
     # Extract pages for this chunk
-    chunk_pages <- parsed_document %>%
+    chunk_pages <- parsed_document |>
       dplyr::filter(page_number >= page_start, page_number <= page_end)
 
     # Build multimodal content
@@ -175,7 +168,7 @@ chunk_by_images <- function(parsed_document,
       chunk_id = chunk_id,
       page_start = page_start,
       page_end = page_end,
-      user_message = list(user_message)  # Wrap in list for list-column
+      user_message = user_message  # Already a list, no extra wrapping needed
     )
 
     chunk_id <- chunk_id + 1
@@ -186,7 +179,7 @@ chunk_by_images <- function(parsed_document,
     chunk_id = sapply(chunks, `[[`, "chunk_id"),
     page_start = sapply(chunks, `[[`, "page_start"),
     page_end = sapply(chunks, `[[`, "page_end"),
-    user_message = lapply(chunks, `[[`, "user_message")
+    user_message = I(lapply(chunks, `[[`, "user_message"))
   )
 
   return(result)
@@ -324,7 +317,7 @@ build_prompt_images <- function(parsed_document,
       chunk_id = 1L,
       page_start = min(parsed_document$page_number),
       page_end = max(parsed_document$page_number),
-      user_message = list(user_message)
+      user_message = I(list(user_message))
     )
 
   } else {
