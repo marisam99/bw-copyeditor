@@ -25,11 +25,6 @@ source(file.path("config", "model_config.R"))
 #' @param document_type Character. Type of document (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param process_pages Integer vector. Specific pages to process. If NULL,
-#'   processes all pages (default: NULL).
-#' @param verbose Logical. Print progress messages (default: TRUE).
-#' @param delay_between_chunks Numeric. Delay in seconds between API calls to
-#'   avoid rate limits (default: 1).
 #'
 #' @return A data frame with columns:
 #'   \item{page_number}{Integer. Page number where issue was found}
@@ -57,25 +52,14 @@ source(file.path("config", "model_config.R"))
 #'     audience = "Healthcare executives"
 #'   )
 #'
-#'   # Process specific pages only
-#'   results <- process_document(
-#'     mode = "text",
-#'     document_type = "internal",
-#'     audience = "Data science team",
-#'     process_pages = c(1, 2, 5)
-#'   )
-#'
-#'   # Export to CSV
+#'   # Export results
 #'   export_results(results, "copyedit_results.csv")
 #' }
 #'
 #' @export
 process_document <- function(mode = c("text", "images"),
                              document_type,
-                             audience,
-                             process_pages = NULL,
-                             verbose = TRUE,
-                             delay_between_chunks = 1) {
+                             audience) {
 
   # Match and validate mode argument
   mode <- match.arg(mode)
@@ -89,51 +73,25 @@ process_document <- function(mode = c("text", "images"),
     stop("audience is required")
   }
 
-  # Select context window based on mode
-  context_window <- if (mode == "text") CONTEXT_WINDOW_TEXT else CONTEXT_WINDOW_IMAGES
-
-  if (verbose) {
-    cat(sprintf("\n=== Bellwether Copyeditor ===\n"))
-    cat(sprintf("Mode: %s\n", mode))
-    cat(sprintf("Document type: %s\n", document_type))
-    cat(sprintf("Audience: %s\n", audience))
-  }
+  cat(sprintf("\n=== Bellwether Copyeditor ===\n"))
+  cat(sprintf("Mode: %s\n", mode))
+  cat(sprintf("Document type: %s\n", document_type))
+  cat(sprintf("Audience: %s\n", audience))
 
   # Parse document (file picker opens in parse_document)
-  if (verbose) cat("\nParsing document...\n")
+  cat("\nParsing document...\n")
   parsed_doc <- parse_document(mode = mode)
 
   total_pages <- nrow(parsed_doc)
-  if (verbose) {
-    cat(sprintf("Document parsed: %d pages\n", total_pages))
-  }
-
-  # Filter pages if specified
-  if (!is.null(process_pages)) {
-    valid_pages <- process_pages[process_pages <= total_pages & process_pages > 0]
-    if (length(valid_pages) == 0) {
-      stop("No valid pages to process")
-    }
-
-    parsed_doc <- parsed_doc[parsed_doc$page_number %in% valid_pages, ]
-
-    if (verbose) {
-      cat(sprintf("Processing %d page(s): %s\n",
-                  nrow(parsed_doc),
-                  paste(sort(parsed_doc$page_number), collapse = ", ")))
-    }
-  } else {
-    if (verbose) {
-      cat(sprintf("Processing all %d pages\n", total_pages))
-    }
-  }
+  cat(sprintf("Document parsed: %d pages\n", total_pages))
+  cat(sprintf("Processing all %d pages\n", total_pages))
 
   # Load system prompt (used by both text and image modes)
-  if (verbose) cat("Loading system prompt from config/system_prompt.txt\n")
+  cat("Loading system prompt from config/system_prompt.txt\n")
   system_prompt <- load_system_prompt()
 
   # Build user messages (with automatic chunking if needed)
-  if (verbose) cat("Building user messages...\n")
+  cat("Building user messages...\n")
   if (mode == "text") {
     user_message_chunks <- build_prompt_text(
       parsed_document = parsed_doc,
@@ -149,7 +107,7 @@ process_document <- function(mode = c("text", "images"),
   }
 
   num_chunks <- nrow(user_message_chunks)
-  if (verbose && num_chunks > 1) {
+  if (num_chunks > 1) {
     cat(sprintf("Document split into %d chunks\n", num_chunks))
   }
 
@@ -161,11 +119,9 @@ process_document <- function(mode = c("text", "images"),
   for (i in seq_len(num_chunks)) {
     chunk <- user_message_chunks[i, ]
 
-    if (verbose) {
-      cat(sprintf("\n[Chunk %d/%d] Pages %d-%d...",
-                  i, num_chunks,
-                  chunk$page_start, chunk$page_end))
-    }
+    cat(sprintf("\n[Chunk %d/%d] Pages %d-%d...",
+                i, num_chunks,
+                chunk$page_start, chunk$page_end))
 
     # Call API based on mode
     tryCatch({
@@ -184,11 +140,9 @@ process_document <- function(mode = c("text", "images"),
       # Store suggestions
       if (!is.null(result$suggestions) && length(result$suggestions) > 0) {
         all_suggestions <- c(all_suggestions, result$suggestions)
-        if (verbose) {
-          cat(sprintf(" %d suggestion(s) found", length(result$suggestions)))
-        }
+        cat(sprintf(" %d suggestion(s) found", length(result$suggestions)))
       } else {
-        if (verbose) cat(" No issues found")
+        cat(" No issues found")
       }
 
       # Store metadata
@@ -200,23 +154,14 @@ process_document <- function(mode = c("text", "images"),
       )
 
     }, error = function(e) {
-      if (verbose) {
-        cat(sprintf("\nError processing chunk %d: %s\n", i, e$message))
-      }
+      cat(sprintf("\nError processing chunk %d: %s\n", i, e$message))
       warning(sprintf("Failed to process chunk %d (pages %d-%d): %s",
                      i, chunk$page_start, chunk$page_end, e$message))
     })
-
-    # Add delay between requests to avoid rate limits
-    if (i < num_chunks && delay_between_chunks > 0) {
-      Sys.sleep(delay_between_chunks)
-    }
   }
 
-  if (verbose) {
-    cat(sprintf("\n\nProcessing complete!\n"))
-    cat(sprintf("Total suggestions: %d\n", length(all_suggestions)))
-  }
+  cat(sprintf("\n\nProcessing complete!\n"))
+  cat(sprintf("Total suggestions: %d\n", length(all_suggestions)))
 
   # Convert to data frame
   results_df <- format_results(all_suggestions)
@@ -225,15 +170,13 @@ process_document <- function(mode = c("text", "images"),
   attr(results_df, "mode") <- mode
   attr(results_df, "document_type") <- document_type
   attr(results_df, "audience") <- audience
-  attr(results_df, "pages_processed") <- if (!is.null(process_pages)) process_pages else seq_len(total_pages)
+  attr(results_df, "pages_processed") <- seq_len(total_pages)
   attr(results_df, "num_chunks") <- num_chunks
   attr(results_df, "model") <- if (mode == "text") MODEL_TEXT else MODEL_IMAGES
   attr(results_df, "api_metadata") <- api_metadata
   attr(results_df, "processed_at") <- Sys.time()
 
-  if (verbose) {
-    print_summary(results_df)
-  }
+  print_summary(results_df)
 
   return(results_df)
 }
