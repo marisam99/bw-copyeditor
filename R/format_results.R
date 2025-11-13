@@ -88,7 +88,7 @@ validate_results <- function(results_df) {
   }
 
   # Flag rows with missing critical fields
-  results_df <- results_df %>%
+  results_df <- results_df |>
     dplyr::mutate(
       is_valid = !is.na(page_number) & !is.na(original_text) & original_text != ""
     )
@@ -148,7 +148,7 @@ format_results <- function(suggestions_list) {
   results_df <- validate_results(results_df)
 
   # Order columns (preserve API response order, just reorder columns)
-  results_df <- results_df %>%
+  results_df <- results_df |>
     dplyr::select(page_number, issue, original_text, suggested_edit,
                   rationale, severity, confidence, is_valid)
 
