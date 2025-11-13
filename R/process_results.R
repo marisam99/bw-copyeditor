@@ -30,11 +30,10 @@ create_empty_results_df <- function() {
 
 #' Convert List to Data Frame
 #'
-#' Converts the nested list structure from API to a flat tibble.
+#' Converts nested API list to flat tibble.
 #'
 #' @param suggestions_list List of suggestions.
-#'
-#' @return Tibble.
+#' @return Tibble with suggestion data.
 #' @keywords internal
 convert_list_to_df <- function(suggestions_list) {
 
@@ -75,10 +74,9 @@ convert_list_to_df <- function(suggestions_list) {
 
 #' Validate Results
 #'
-#' Flags rows with missing critical fields instead of removing them.
+#' Flags rows with missing critical fields.
 #'
-#' @param results_df Tibble.
-#'
+#' @param results_df Tibble to validate.
 #' @return Tibble with is_valid column added.
 #' @keywords internal
 validate_results <- function(results_df) {
@@ -107,28 +105,17 @@ validate_results <- function(results_df) {
 
 #' Format Copyediting Results
 #'
-#' Converts a list of copyediting suggestions from OpenAI API into a clean,
-#' structured tibble with proper column types and validation.
+#' Converts API suggestions into a structured table.
 #'
-#' @param suggestions_list List. Raw suggestions from API responses.
-#'
-#' @return A tibble with standardized columns:
-#'   \item{page_number}{Integer}
-#'   \item{issue}{Character - brief description of the issue}
-#'   \item{original_text}{Character}
-#'   \item{suggested_edit}{Character}
-#'   \item{rationale}{Character - explanation for the edit}
-#'   \item{severity}{Character - critical/recommended/optional}
-#'   \item{confidence}{Numeric - 0 to 1}
-#'   \item{is_valid}{Logical - TRUE if row has required fields}
+#' @param suggestions_list Raw suggestions from API.
+#' @return Table with page_number, issue, original_text, suggested_edit, rationale, severity, confidence, and is_valid columns.
 #'
 #' @examples
 #' \dontrun{
 #'   suggestions <- list(
 #'     list(page_number = 1, issue = "grammar error",
 #'          original_text = "their", suggested_edit = "there",
-#'          rationale = "Wrong form of there/their/they're",
-#'          severity = "critical", confidence = 0.95)
+#'          rationale = "Wrong form", severity = "critical", confidence = 0.95)
 #'   )
 #'   df <- format_results(suggestions)
 #' }
@@ -161,17 +148,16 @@ format_results <- function(suggestions_list) {
 }
 
 
-#' Print Summary of Copyediting Results
+#' Print Summary
 #'
-#' Prints a formatted summary of the copyediting results.
+#' Prints a summary of copyediting results.
 #'
-#' @param results_df Data frame. Results from process_document().
-#'
+#' @param results_df Results from process_document().
 #' @return Invisible NULL.
 #'
 #' @examples
 #' \dontrun{
-#'   results <- process_document("report.pdf")
+#'   results <- process_document()
 #'   print_summary(results)
 #' }
 #'
@@ -203,20 +189,18 @@ print_summary <- function(results_df) {
 
 #' Export Results to CSV
 #'
-#' Convenience function to export copyediting results to CSV.
-#' Automatically saves files in the same directory as the source document.
+#' Exports results to CSV in the same folder as source document.
 #'
-#' @param results_df Data frame. Results from process_document().
-#' @param output_filename Character. Name for output CSV file (default: "copyedit_results.csv").
-#' @param include_metadata Logical. Include metadata in separate file (default: TRUE).
-#'
-#' @return Invisible NULL. Writes files to disk.
+#' @param results_df Results from process_document().
+#' @param output_filename Output file name (default: "copyedit_results.csv").
+#' @param include_metadata Include metadata file (default: TRUE).
+#' @return Invisible NULL.
 #'
 #' @examples
 #' \dontrun{
-#'   results <- process_document("report.pdf")
-#'   export_results(results)  # Saves to same folder as report.pdf
-#'   export_results(results, "my_results.csv")  # Custom filename
+#'   results <- process_document()
+#'   export_results(results)
+#'   export_results(results, "my_results.csv")
 #' }
 #'
 #' @export

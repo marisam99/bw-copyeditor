@@ -12,9 +12,21 @@ An R package for automated copyediting using Large Language Models (LLMs). This 
 
 ### Input/Output
 
-**Input:** - File path to a PDF document (PDF only - export DOCX/PPTX to PDF first)
+**Input:**
+- PDF document via file picker (PDF only - export DOCX/PPTX to PDF first)
+- Document type (e.g., "external client-facing", "internal")
+- Audience description (e.g., "Healthcare executives")
 
-**Output:** - A data frame (table) containing suggested edits with the following columns: - `page_number` - Which page the error appears on - `issue` - Brief description of the issue (e.g., "grammar error", "AP Style violation") - `original_text` - The text containing the error - `suggested_edit` - Recommended fix - `rationale` - Explanation of why this edit is needed - `severity` - One of: "critical", "recommended", "optional" - `confidence` - Numeric value between 0 and 1 indicating confidence in the suggestion
+**Output:**
+- A data frame (table) containing suggested edits with the following columns:
+  - `page_number` - Which page the error appears on
+  - `issue` - Brief description of the issue (e.g., "grammar error")
+  - `original_text` - The text containing the error
+  - `suggested_edit` - Recommended fix
+  - `rationale` - Explanation of why this edit is needed
+  - `severity` - One of: "critical", "recommended", "optional"
+  - `confidence` - Numeric value between 0 and 1 indicating confidence
+  - `is_valid` - TRUE if row has required fields
 
 ------------------------------------------------------------------------
 
@@ -27,7 +39,7 @@ The tool supports two parsing modes for PDF documents:
 #### Text Mode (Default)
 
 -   **Use case:** Publications, reports, text-heavy documents
--   **Function:** `parse_to_text()` via `parse_document(mode = "text")`
+-   **Function:** `extract_to_text()` via `extract_document(mode = "text")`
 -   **Process:** Extracts text content from each PDF page
 -   **Output:** Tibble with `page_number` and `content` (text)
 -   **LLM usage:** Text is sent directly to LLM for copyediting
@@ -35,10 +47,10 @@ The tool supports two parsing modes for PDF documents:
 #### Image Mode
 
 -   **Use case:** Slide decks, presentations, visual-heavy documents
--   **Function:** `parse_to_images()` via `parse_document(mode = "images")`
+-   **Function:** `extract_to_images()` via `extract_document(mode = "images")`
 -   **Process:** Converts each PDF page to PNG images
 -   **Output:** Tibble with `page_number` and `image_path`
--   **LLM usage:** Images sent to multimodal LLM (e.g., Claude with vision) for review
+-   **LLM usage:** Images sent to multimodal LLM (OpenAI GPT with vision) for review
 -   **Benefit:** Captures text within charts, diagrams, and other visual elements
 
 **Note:** If you have DOCX or PPTX files, export them to PDF first using File \> Save As \> PDF in Microsoft Office.
@@ -104,15 +116,49 @@ The tool supports two parsing modes for PDF documents:
 
 ## Architecture Notes
 
-### Document Parsing
+### Main Entry Point
 
-The `parse_document()` function serves as the main entry point for document processing. It accepts a `mode` parameter: - **Text mode** (default): Returns tibble with `page_number` and `content` (text) - **Images mode**: Returns tibble with `page_number` and `image_path`
+The `process_document()` function is the main orchestrator that coordinates the entire pipeline:
+- Opens file picker for PDF selection
+- Extracts content using `extract_document()`
+- Builds prompts with automatic chunking
+- Calls OpenAI API via `ellmer`
+- Formats and exports results
 
-This tibble structure makes it easy to: - Iterate over pages using standard dplyr operations - Format content for LLM prompts (e.g., "Page 1: \[text\]") - Track which page errors appear on - Join with error results by page_number
+### Document Extraction
+
+The `extract_document()` function extracts content from PDFs. It accepts a `mode` parameter:
+- **Text mode** (default): Returns tibble with `page_number` and `content` (text)
+- **Images mode**: Returns tibble with `page_number` and `image_path`
+
+This tibble structure makes it easy to:
+- Iterate over pages using standard dplyr operations
+- Format content for LLM prompts (e.g., "Page 1: [text]")
+- Track which page errors appear on
+- Join with error results by page_number
+
+### Prompt Building
+
+Two separate functions handle prompt formatting:
+- `build_prompt_text()` - For text mode (with automatic token-based chunking)
+- `build_prompt_images()` - For image mode (with image-count-based chunking)
+
+Both functions:
+- Add document type and audience context
+- Automatically chunk large documents
+- Return tibbles with chunk metadata
 
 ### LLM Integration
 
-Use the `ellmer` package for all LLM API interactions. The general workflow: 1. Parse document to extract text/images by page using `parse_document()` 2. Format each page for LLM review 3. Send to LLM with appropriate prompt: - Text mode: Standard text-only LLM - Image mode: Multimodal LLM (e.g., Claude with vision) 4. Parse LLM response into structured error table 5. Return data frame of suggested edits
+Use the `ellmer` package for all LLM API interactions. The general workflow:
+1. Extract document using `extract_document()` (opens file picker)
+2. Build prompts with automatic chunking using `build_prompt_text()` or `build_prompt_images()`
+3. Send to OpenAI API with appropriate function:
+   - Text mode: `call_openai_api_text()` (standard text-only LLM)
+   - Image mode: `call_openai_api_images()` (multimodal LLM with vision)
+4. Format response using `format_results()` into structured error table
+5. Export to CSV using `export_results()` with timestamp
+6. Return data frame of suggested edits
 
 ------------------------------------------------------------------------
 
