@@ -168,17 +168,31 @@ call_openai_api <- function(user_message,
 
     }, error = function(e) {
       last_error <- e
-      if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
+
+      # Extract detailed error information
+      error_msg <- conditionMessage(e)
+
+      # Try to extract the full error details from the httr response if available
+      if (!is.null(e$parent) && inherits(e$parent, "error")) {
+        error_msg <- paste(error_msg, "\nDetails:", conditionMessage(e$parent))
+      }
+
+      if (grepl("rate limit|429", error_msg, ignore.case = TRUE)) {
         message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
-      } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
+      } else if (grepl("500|502|503|504", error_msg, ignore.case = TRUE)) {
         message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
-        # Don't retry on client errors
-        stop(sprintf("API request failed: %s", e$message))
+        # Don't retry on client errors - show full error details
+        cat("\n=== Full API Error Details ===\n")
+        cat("Error message:", error_msg, "\n")
+        cat("Error class:", class(e), "\n")
+        if (!is.null(e$call)) cat("Error call:", deparse(e$call), "\n")
+        cat("==============================\n\n")
+        stop(sprintf("API request failed: %s", error_msg))
       }
     })
 
@@ -289,17 +303,31 @@ call_openai_api_images <- function(user_content) {
 
     }, error = function(e) {
       last_error <- e
-      if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
+
+      # Extract detailed error information
+      error_msg <- conditionMessage(e)
+
+      # Try to extract the full error details from the httr response if available
+      if (!is.null(e$parent) && inherits(e$parent, "error")) {
+        error_msg <- paste(error_msg, "\nDetails:", conditionMessage(e$parent))
+      }
+
+      if (grepl("rate limit|429", error_msg, ignore.case = TRUE)) {
         message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
-      } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
+      } else if (grepl("500|502|503|504", error_msg, ignore.case = TRUE)) {
         message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
-        # Don't retry on client errors
-        stop(sprintf("API request failed: %s", e$message))
+        # Don't retry on client errors - show full error details
+        cat("\n=== Full API Error Details ===\n")
+        cat("Error message:", error_msg, "\n")
+        cat("Error class:", class(e), "\n")
+        if (!is.null(e$call)) cat("Error call:", deparse(e$call), "\n")
+        cat("==============================\n\n")
+        stop(sprintf("API request failed: %s", error_msg))
       }
     })
 
