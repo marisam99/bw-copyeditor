@@ -96,8 +96,8 @@ parse_json_response <- function(response, model, chat) {
 #' This function uses the model specified in MODEL_TEXT (from config/model_config.R).
 #' To change the model, edit MODEL_TEXT in config/model_config.R.
 #'
-#' Temperature and retry settings are configured in config/model_config.R via
-#' DEFAULT_TEMPERATURE and MAX_RETRY_ATTEMPTS.
+#' Note: GPT-5 (reasoning model) does not support the temperature parameter.
+#' Retry settings are configured in config/model_config.R via MAX_RETRY_ATTEMPTS.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -150,12 +150,11 @@ call_openai_api <- function(user_message,
   while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
       # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
+      # GPT-5 is a reasoning model that doesn't support the temperature parameter
+      # (only supports default value of 1)
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
-        model = MODEL_TEXT,
-        api_args = list(
-          temperature = DEFAULT_TEMPERATURE
-        )
+        model = MODEL_TEXT
       )
 
       # Send message and get response
@@ -217,8 +216,9 @@ call_openai_api <- function(user_message,
 #' This function uses the model specified in MODEL_IMAGES (from config/model_config.R).
 #' To change the model, edit MODEL_IMAGES in config/model_config.R.
 #'
-#' Temperature, max_completion_tokens, and retry settings are configured in config/model_config.R via
-#' DEFAULT_TEMPERATURE, MAX_COMPLETION_TOKENS_IMAGES, and MAX_RETRY_ATTEMPTS.
+#' Note: GPT-5 (reasoning model) does not support the temperature parameter.
+#' Max_completion_tokens and retry settings are configured in config/model_config.R via
+#' MAX_COMPLETION_TOKENS_IMAGES and MAX_RETRY_ATTEMPTS.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -283,12 +283,13 @@ call_openai_api_images <- function(user_content) {
   while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
       # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
-      # GPT-5 is a reasoning model that requires max_completion_tokens instead of max_tokens
+      # GPT-5 is a reasoning model that:
+      # - Requires max_completion_tokens instead of max_tokens
+      # - Does not support temperature parameter (only accepts default value of 1)
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
         model = MODEL_IMAGES,
         api_args = list(
-          temperature = DEFAULT_TEMPERATURE,
           max_completion_tokens = MAX_COMPLETION_TOKENS_IMAGES
         )
       )

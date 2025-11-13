@@ -10,6 +10,8 @@
 #' Default sampling temperature for API calls
 #' Lower values (closer to 0) make output more focused and deterministic.
 #' Range: 0.0 to 2.0
+#' NOTE: GPT-5 (reasoning model) does not support temperature parameter
+#' This setting is retained for backward compatibility but not currently used
 DEFAULT_TEMPERATURE <- 0.3
 
 #' Maximum number of retry attempts for failed API requests
