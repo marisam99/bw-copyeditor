@@ -184,6 +184,7 @@ print_summary <- function(results_df) {
   }
 
   cat("\n=== Summary ===\n")
+  cat(sprintf("Total suggestions: %d\n", nrow(results_df)))
 
   # By severity
   if ("severity" %in% names(results_df)) {
@@ -191,24 +192,6 @@ print_summary <- function(results_df) {
     severity_counts <- table(results_df$severity)
     for (sev in names(severity_counts)) {
       cat(sprintf("  %s: %d\n", sev, severity_counts[sev]))
-    }
-  }
-
-  # By issue type
-  if ("issue" %in% names(results_df)) {
-    cat("\nBy Issue Type:\n")
-    issue_counts <- table(results_df$issue)
-    for (issue_type in names(issue_counts)) {
-      cat(sprintf("  %s: %d\n", issue_type, issue_counts[issue_type]))
-    }
-  }
-
-  # By page
-  if ("page_number" %in% names(results_df)) {
-    cat("\nBy Page:\n")
-    page_counts <- table(results_df$page_number)
-    for (page in names(page_counts)) {
-      cat(sprintf("  Page %s: %d\n", page, page_counts[page]))
     }
   }
 
@@ -221,9 +204,10 @@ print_summary <- function(results_df) {
 #' Export Results to CSV
 #'
 #' Convenience function to export copyediting results to CSV.
+#' Automatically saves files in the same directory as the source document.
 #'
 #' @param results_df Data frame. Results from process_document().
-#' @param output_path Character. Path for output CSV file.
+#' @param output_filename Character. Name for output CSV file (default: "copyedit_results.csv").
 #' @param include_metadata Logical. Include metadata in separate file (default: TRUE).
 #'
 #' @return Invisible NULL. Writes files to disk.
@@ -231,11 +215,24 @@ print_summary <- function(results_df) {
 #' @examples
 #' \dontrun{
 #'   results <- process_document("report.pdf")
-#'   export_results(results, "copyedit_results.csv")
+#'   export_results(results)  # Saves to same folder as report.pdf
+#'   export_results(results, "my_results.csv")  # Custom filename
 #' }
 #'
 #' @export
-export_results <- function(results_df, output_path, include_metadata = TRUE) {
+export_results <- function(results_df, output_filename = "copyedit_results.csv", include_metadata = TRUE) {
+
+  # Get source file directory from metadata
+  file_path <- attr(results_df, "file_path")
+
+  if (!is.null(file_path) && file.exists(file_path)) {
+    output_dir <- dirname(file_path)
+    output_path <- file.path(output_dir, output_filename)
+  } else {
+    # Fallback to current directory if file_path not available
+    output_path <- output_filename
+    warning("Source file path not found in metadata. Saving to current directory.")
+  }
 
   # Export main results
   write.csv(results_df, output_path, row.names = FALSE)

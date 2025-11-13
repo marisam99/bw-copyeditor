@@ -87,7 +87,7 @@ parse_document <- function(mode = c("text", "images")) {
 
   # Check if file exists
   if (!file.exists(file_path)) {
-    stop(glue::glue("File not found: {file_path}"))
+    stop(glue::glue("File not found: {file_path}. For more information, see the README.md."))
   }
 
   # Get file extension
@@ -98,14 +98,23 @@ parse_document <- function(mode = c("text", "images")) {
     stop(glue::glue(
       "Only PDF files are supported. Found: {file_ext}\n",
       "If you have a DOCX or PPTX file, please export to PDF first:\n",
-      "File > Save As > PDF"
+      "File > Save As > PDF\n",
+      "For more information, see the README.md."
     ))
   }
 
+  # Start parsing
+  cat("Parsing document...\n")
+
   # Parse based on mode
-  if (mode == "text") {
-    return(parse_to_text(file_path))
+  result <- if (mode == "text") {
+    parse_to_text(file_path)
   } else {
-    return(parse_to_images(file_path))
+    parse_to_images(file_path)
   }
+
+  # Store file path in attributes
+  attr(result, "file_path") <- file_path
+
+  return(result)
 }

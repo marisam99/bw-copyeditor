@@ -66,11 +66,11 @@ process_document <- function(mode = c("text", "images"),
 
   # Validate inputs
   if (missing(document_type) || is.null(document_type) || nchar(trimws(document_type)) == 0) {
-    stop("document_type is required")
+    stop("document_type is required. For more information, see the README.md.")
   }
 
   if (missing(audience) || is.null(audience) || nchar(trimws(audience)) == 0) {
-    stop("audience is required")
+    stop("audience is required. For more information, see the README.md.")
   }
 
   cat(sprintf("\n=== Bellwether Copyeditor ===\n"))
@@ -79,8 +79,11 @@ process_document <- function(mode = c("text", "images"),
   cat(sprintf("Audience: %s\n", audience))
 
   # Parse document (file picker opens in parse_document)
-  cat("\nParsing document...\n")
+  cat("\nWaiting for file upload...\n")
   parsed_doc <- parse_document(mode = mode)
+
+  # Extract file path from parsed document
+  file_path <- attr(parsed_doc, "file_path")
 
   total_pages <- nrow(parsed_doc)
   cat(sprintf("Document parsed: %d pages\n", total_pages))
@@ -161,12 +164,12 @@ process_document <- function(mode = c("text", "images"),
   }
 
   cat(sprintf("\n\nProcessing complete!\n"))
-  cat(sprintf("Total suggestions: %d\n", length(all_suggestions)))
 
   # Convert to data frame
   results_df <- format_results(all_suggestions)
 
   # Add metadata as attributes
+  attr(results_df, "file_path") <- file_path
   attr(results_df, "mode") <- mode
   attr(results_df, "document_type") <- document_type
   attr(results_df, "audience") <- audience
