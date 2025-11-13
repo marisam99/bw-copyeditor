@@ -7,8 +7,16 @@
 #               and returns structured copyediting suggestions.
 # ==============================================================================
 
-# Load configuration ----------------------------------------------------------
+# Load dependencies -----------------------------------------------------------
 source(file.path("config", "model_config.R"))
+source(file.path("R", "parse_documents.R"))
+source(file.path("R", "build_prompt_text.R"))
+source(file.path("R", "build_prompt_images.R"))
+source(file.path("R", "call_openai_api.R"))
+source(file.path("R", "format_results.R"))
+
+# Load system prompt ----------------------------------------------------------
+SYSTEM_PROMPT <- load_system_prompt()
 
 
 # Main Function ---------------------------------------------------------------
@@ -89,10 +97,6 @@ process_document <- function(mode = c("text", "images"),
   cat(sprintf("Document parsed: %d pages\n", total_pages))
   cat(sprintf("Processing all %d pages\n", total_pages))
 
-  # Load system prompt (used by both text and image modes)
-  cat("Loading system prompt from config/system_prompt.txt\n")
-  system_prompt <- load_system_prompt()
-
   # Build user messages (with automatic chunking if needed)
   cat("Building user messages...\n")
   if (mode == "text") {
@@ -131,12 +135,12 @@ process_document <- function(mode = c("text", "images"),
       if (mode == "text") {
         result <- call_openai_api(
           user_message = chunk$user_message,
-          system_prompt = system_prompt
+          system_prompt = SYSTEM_PROMPT
         )
       } else {
         result <- call_openai_api_images(
           user_content = chunk$user_message,
-          system_prompt = system_prompt
+          system_prompt = SYSTEM_PROMPT
         )
       }
 
