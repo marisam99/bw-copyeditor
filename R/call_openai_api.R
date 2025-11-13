@@ -217,8 +217,8 @@ call_openai_api <- function(user_message,
 #' This function uses the model specified in MODEL_IMAGES (from config/model_config.R).
 #' To change the model, edit MODEL_IMAGES in config/model_config.R.
 #'
-#' Temperature, max_tokens, and retry settings are configured in config/model_config.R via
-#' DEFAULT_TEMPERATURE, MAX_TOKENS_IMAGES, and MAX_RETRY_ATTEMPTS.
+#' Temperature, max_completion_tokens, and retry settings are configured in config/model_config.R via
+#' DEFAULT_TEMPERATURE, MAX_COMPLETION_TOKENS_IMAGES, and MAX_RETRY_ATTEMPTS.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -283,12 +283,13 @@ call_openai_api_images <- function(user_content) {
   while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
       # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
+      # GPT-5 is a reasoning model that requires max_completion_tokens instead of max_tokens
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
         model = MODEL_IMAGES,
         api_args = list(
           temperature = DEFAULT_TEMPERATURE,
-          max_tokens = MAX_TOKENS_IMAGES
+          max_completion_tokens = MAX_COMPLETION_TOKENS_IMAGES
         )
       )
 
