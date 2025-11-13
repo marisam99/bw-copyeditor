@@ -1,7 +1,7 @@
 # ==============================================================================
 # Title:        Image Prompt Builder
 # Last Updated: 2025-11-05
-# Description:  Functions to build user message for multimodal LLM from parsed image document.
+# Description:  Functions to build user message for multimodal LLM from extracted image document.
 #               Uses ellmer package to format images for vision-capable models.
 #               Handles automatic chunking for large documents that would exceed token/payload limits.
 #               Uses fixed token estimates for image processing costs.
@@ -59,7 +59,7 @@ estimate_image_tokens <- function(detail = "high") {
 #' Constructs the multimodal content structure using ellmer's helper functions,
 #' combining text context with images.
 #'
-#' @param parsed_document Tibble. Output from parse_document(mode = "images") with
+#' @param extracted_document Tibble. Output from extract_document(mode = "images") with
 #'   columns page_number and image_path.
 #' @param deliverable_type Character. Type of deliverable.
 #' @param audience Character. Target audience description.
@@ -67,7 +67,7 @@ estimate_image_tokens <- function(detail = "high") {
 #'
 #' @return List of ellmer content objects (strings and content_image_file objects).
 #' @keywords internal
-build_multimodal_content <- function(parsed_document, deliverable_type, audience, detail = "high") {
+build_multimodal_content <- function(extracted_document, deliverable_type, audience, detail = "high") {
 
   # Load required package
   if (!requireNamespace("ellmer", quietly = TRUE)) {
@@ -82,9 +82,9 @@ build_multimodal_content <- function(parsed_document, deliverable_type, audience
   content <- list(header)
 
   # Add each page as an image
-  for (i in seq_len(nrow(parsed_document))) {
-    page_num <- parsed_document$page_number[i]
-    image_path <- parsed_document$image_path[i]
+  for (i in seq_len(nrow(extracted_document))) {
+    page_num <- extracted_document$page_number[i]
+    image_path <- extracted_document$image_path[i]
 
     # Add page label (plain string)
     content[[length(content) + 1]] <- glue::glue("\nPage {page_num}:")
@@ -103,10 +103,10 @@ build_multimodal_content <- function(parsed_document, deliverable_type, audience
 
 #' Chunk Document by Image Count
 #'
-#' Splits a parsed document into chunks based on number of images per chunk,
+#' Splits a extracted document into chunks based on number of images per chunk,
 #' ensuring each chunk stays within token and payload limits.
 #'
-#' @param parsed_document Tibble. Output from parse_document(mode = "images") with
+#' @param extracted_document Tibble. Output from extract_document(mode = "images") with
 #'   columns page_number and image_path.
 #' @param deliverable_type Character. Type of deliverable.
 #' @param audience Character. Target audience description.
@@ -116,14 +116,14 @@ build_multimodal_content <- function(parsed_document, deliverable_type, audience
 #'
 #' @return Tibble with columns: chunk_id, page_start, page_end, user_message.
 #' @keywords internal
-chunk_by_images <- function(parsed_document,
+chunk_by_images <- function(extracted_document,
                             deliverable_type,
                             audience,
                             images_per_chunk = 20,
                             detail = "high",
                             model = "gpt-4o") {
 
-  total_pages <- nrow(parsed_document)
+  total_pages <- nrow(extracted_document)
   chunks <- list()
   chunk_id <- 1
 
@@ -142,12 +142,12 @@ chunk_by_images <- function(parsed_document,
     page_end <- min(i * images_per_chunk, total_pages)
 
     # Extract pages for this chunk
-    chunk_pages <- parsed_document |>
+    chunk_pages <- extracted_document |>
       dplyr::filter(page_number >= page_start, page_number <= page_end)
 
     # Build multimodal content
     user_message <- build_multimodal_content(
-      parsed_document = chunk_pages,
+      extracted_document = chunk_pages,
       deliverable_type = deliverable_type,
       audience = audience,
       detail = detail
@@ -191,10 +191,10 @@ chunk_by_images <- function(parsed_document,
 #' Build Prompt for Multimodal API (Images)
 #'
 #' Constructs user messages for vision-capable LLM API requests with automatic chunking.
-#' Takes a parsed document with images and formats it using ellmer's multimodal content
+#' Takes a extracted document with images and formats it using ellmer's multimodal content
 #' helpers, combining deliverable type and audience information with images.
 #'
-#' @param parsed_document Tibble. Output from parse_document(mode = "images") with
+#' @param extracted_document Tibble. Output from extract_document(mode = "images") with
 #'   columns page_number and image_path.
 #' @param deliverable_type Character. Type of deliverable (e.g., "external field-facing",
 #'   "external client-facing", "internal").
@@ -223,16 +223,16 @@ chunk_by_images <- function(parsed_document,
 #' IMPORTANT: Image mode is more expensive and slower than text mode.
 #' Use image mode only for documents where visual elements matter (e.g., slide decks,
 #' documents with text in charts/diagrams). For pure text documents, use build_prompt_text()
-#' with parse_document(mode = "text") instead.
+#' with extract_document(mode = "text") instead.
 #'
 #' @examples
 #' \dontrun{
-#'   # Parse document as images
-#'   slides <- parse_document(mode = "images")
+#'   # extract document as images
+#'   slides <- extract_document(mode = "images")
 #'
 #'   # Build prompt(s) - may return single or multiple chunks
 #'   prompts <- build_prompt_images(
-#'     parsed_document = slides,
+#'     extracted_document = slides,
 #'     deliverable_type = "external client-facing",
 #'     audience = "Healthcare executives"
 #'   )
@@ -245,7 +245,7 @@ chunk_by_images <- function(parsed_document,
 #' }
 #'
 #' @export
-build_prompt_images <- function(parsed_document,
+build_prompt_images <- function(extracted_document,
                                deliverable_type,
                                audience) {
 
@@ -256,12 +256,12 @@ build_prompt_images <- function(parsed_document,
   model <- MODEL_IMAGES
 
   # Validate inputs
-  if (missing(parsed_document) || !inherits(parsed_document, "data.frame")) {
-    stop("parsed_document must be a tibble/data.frame from parse_document(mode = 'images')")
+  if (missing(extracted_document) || !inherits(extracted_document, "data.frame")) {
+    stop("extracted_document must be a tibble/data.frame from extract_document(mode = 'images')")
   }
 
-  if (!"page_number" %in% names(parsed_document) || !"image_path" %in% names(parsed_document)) {
-    stop("parsed_document must have 'page_number' and 'image_path' columns. Did you use mode = 'images'?")
+  if (!"page_number" %in% names(extracted_document) || !"image_path" %in% names(extracted_document)) {
+    stop("extracted_document must have 'page_number' and 'image_path' columns. Did you use mode = 'images'?")
   }
 
   if (missing(deliverable_type) || is.null(deliverable_type) || nchar(trimws(deliverable_type)) == 0) {
@@ -287,7 +287,7 @@ build_prompt_images <- function(parsed_document,
   }
 
   # Estimate total tokens
-  total_pages <- nrow(parsed_document)
+  total_pages <- nrow(extracted_document)
   tokens_per_image <- estimate_image_tokens(detail)
   estimated_tokens <- total_pages * tokens_per_image
 
@@ -307,7 +307,7 @@ build_prompt_images <- function(parsed_document,
 
     # Build single chunk
     user_message <- build_multimodal_content(
-      parsed_document = parsed_document,
+      extracted_document = extracted_document,
       deliverable_type = deliverable_type,
       audience = audience,
       detail = detail
@@ -315,8 +315,8 @@ build_prompt_images <- function(parsed_document,
 
     result <- tibble::tibble(
       chunk_id = 1L,
-      page_start = min(parsed_document$page_number),
-      page_end = max(parsed_document$page_number),
+      page_start = min(extracted_document$page_number),
+      page_end = max(extracted_document$page_number),
       user_message = I(list(user_message))
     )
 
@@ -330,11 +330,12 @@ build_prompt_images <- function(parsed_document,
     }
 
     message(glue::glue(
-      "Document will be split into multiple chunks (limit: {images_per_chunk} images per chunk)"
+      "Document is too large to send all at once. 
+        It will be split into multiple chunks (limit: {images_per_chunk} images per chunk)\n"
     ))
 
     result <- chunk_by_images(
-      parsed_document = parsed_document,
+      extracted_document = extracted_document,
       deliverable_type = deliverable_type,
       audience = audience,
       images_per_chunk = images_per_chunk,

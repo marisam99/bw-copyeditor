@@ -5,10 +5,6 @@
 #               Supports both text-only and multimodal (image) modes.
 # ==============================================================================
 
-# Load configuration ----------------------------------------------------------
-source(file.path("config", "model_config.R"))
-
-
 # Helper Functions ------------------------------------------------------------
 
 #' Validate API Key
@@ -174,11 +170,9 @@ parse_json_response <- function(response, model, chat) {
 #' @examples
 #' \dontrun{
 #'   # Parse document and build user messages
-#'   parsed <- parse_document(mode = "text")
-#'   user_msgs <- build_prompt_text(parsed, "external client-facing", "Healthcare executives")
+#'   extracted <- extract_document(mode = "text")
+#'   user_msgs <- build_prompt_text(extracted, "external client-facing", "Healthcare executives")
 #'
-#'   # Call API (requires OPENAI_API_KEY environment variable)
-#'   # system_prompt loads automatically from config/system_prompt.txt
 #'   result <- call_openai_api(
 #'     user_message = user_msgs$user_message[1]
 #'   )
@@ -186,16 +180,10 @@ parse_json_response <- function(response, model, chat) {
 #' }
 #'
 #' @export
-call_openai_api <- function(user_message,
-                           system_prompt = NULL) {
+call_openai_api_text <- function(user_message) {
 
   # Validate API key
   validate_api_key()
-
-  # Load system prompt if not provided
-  if (is.null(system_prompt)) {
-    system_prompt <- load_system_prompt()
-  }
 
   # Validate inputs
   if (!is.character(user_message) || length(user_message) != 1) {
@@ -209,15 +197,20 @@ call_openai_api <- function(user_message,
     # (only supports default value of 1)
     # Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
     chat <- ellmer::chat_openai(
-      system_prompt = system_prompt,
+      system_prompt = SYSTEM_PROMPT,
       model = MODEL_TEXT,
       api_args = list(
-        reasoning_effort = "minimal"
-      )
+        reasoning_effort = REASONING_LEVEL
+      ),
+      echo = "none"
     )
 
     # Send message and get response
+    start_time <- Sys.time()
     response <- chat$chat(user_message)
+    elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 1)
+
+    message(sprintf("Response received in %.1f seconds", elapsed))
 
     # Parse the JSON response
     parse_json_response(response, MODEL_TEXT, chat)
@@ -242,8 +235,6 @@ call_openai_api <- function(user_message,
 #' This function uses the model specified in MODEL_IMAGES (from config/model_config.R).
 #' To change the model, edit MODEL_IMAGES in config/model_config.R.
 #'
-#' Note: GPT-5 (reasoning model) does not support the temperature parameter.
-#' Uses reasoning_effort = "minimal" for faster responses on copyediting tasks.
 #' Max_completion_tokens and retry settings are configured in config/model_config.R via
 #' MAX_COMPLETION_TOKENS_IMAGES and MAX_RETRY_ATTEMPTS.
 #'
@@ -254,7 +245,7 @@ call_openai_api <- function(user_message,
 #'   \item{response_metadata}{Full response metadata}
 #'
 #' @details
-#' This function is designed for documents parsed in image mode (slide decks,
+#' This function is designed for documents extracted in image mode (slide decks,
 #' presentations, or documents with visual elements like charts/diagrams).
 #' Images are handled by ellmer's content_image_file() helper. This is significantly
 #' more expensive than text mode - use only when visual elements matter.
@@ -265,8 +256,8 @@ call_openai_api <- function(user_message,
 #'
 #' @examples
 #' \dontrun{
-#'   # Parse document as images
-#'   slides <- parse_document(mode = "images")
+#'   # extract document as images
+#'   slides <- extract_document(mode = "images")
 #'
 #'   # Build multimodal prompt (returns ellmer format)
 #'   prompts <- build_prompt_images(
@@ -283,16 +274,10 @@ call_openai_api <- function(user_message,
 #' }
 #'
 #' @export
-call_openai_api_images <- function(user_content,
-                                   system_prompt = NULL) {
+call_openai_api_images <- function(user_content) {
 
   # Validate API key
   validate_api_key()
-
-  # Load system prompt if not provided
-  if (is.null(system_prompt)) {
-    system_prompt <- load_system_prompt()
-  }
 
   # Validate inputs
   if (!is.list(user_content) || length(user_content) == 0) {
@@ -307,17 +292,22 @@ call_openai_api_images <- function(user_content,
     # - Does not support temperature parameter (only accepts default value of 1)
     # - Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
     chat <- ellmer::chat_openai(
-      system_prompt = system_prompt,
+      system_prompt = SYSTEM_PROMPT,
       model = MODEL_IMAGES,
       api_args = list(
         max_completion_tokens = MAX_COMPLETION_TOKENS_IMAGES,
-        reasoning_effort = "minimal"
-      )
+        reasoning_effort = REASONING_LEVEL
+      ),
+      echo = "none"
     )
 
     # Send multimodal message and get response
     # user_content is already in ellmer format (strings + content_image_file objects)
+    start_time <- Sys.time()
     response <- do.call(chat$chat, user_content)
+    elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 1)
+
+    message(sprintf("Response received in %.1f seconds", elapsed))
 
     # Parse the JSON response
     parse_json_response(response, MODEL_IMAGES, chat)

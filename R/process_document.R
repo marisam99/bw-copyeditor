@@ -2,29 +2,26 @@
 # Title:        Document Processor
 # Last Updated: 2025-11-13
 # Description:  Main orchestrator function for the copyediting pipeline.
-#               Supports both text and image modes. Parses PDF documents,
+#               Supports both text and image modes. Extracts PDF documents,
 #               builds prompts with automatic chunking, calls OpenAI API,
 #               and returns structured copyediting suggestions.
 # ==============================================================================
 
-# Load dependencies -----------------------------------------------------------
+# Configurations -------------------------------------------------------------
 source(file.path("config", "model_config.R"))
-source(file.path("R", "parse_documents.R"))
+SYSTEM_PROMPT <- load_system_prompt()
+source(file.path("R", "extract_documents.R"))
 source(file.path("R", "build_prompt_text.R"))
 source(file.path("R", "build_prompt_images.R"))
 source(file.path("R", "call_openai_api.R"))
-source(file.path("R", "format_results.R"))
-
-# Load system prompt ----------------------------------------------------------
-SYSTEM_PROMPT <- load_system_prompt()
-
+source(file.path("R", "process_results.R"))
 
 # Main Function ---------------------------------------------------------------
 
 #' Process Document for Copyediting
 #'
 #' Main orchestrator function that processes an entire document through the
-#' copyediting pipeline. Parses the document, builds prompts with automatic
+#' copyediting pipeline. Extractss the document, builds prompts with automatic
 #' chunking if needed, sends to OpenAI API, and returns a structured data frame.
 #'
 #' @param mode Character. Processing mode: "text" (default) or "images".
@@ -81,41 +78,35 @@ process_document <- function(mode = c("text", "images"),
     stop("audience is required. For more information, see the README.md.")
   }
 
-  cat(sprintf("\n=== Bellwether Copyeditor ===\n"))
-  cat(sprintf("Mode: %s\n", mode))
-  cat(sprintf("Document type: %s\n", document_type))
-  cat(sprintf("Audience: %s\n", audience))
+  message(sprintf("\n=== Bellwether Copyeditor ===\n"))
+  message(sprintf("Mode: %s\n", mode))
+  message(sprintf("Document type: %s\n", document_type))
+  message(sprintf("Audience: %s\n", audience))
 
-  # Parse document (file picker opens in parse_document)
-  cat("\nWaiting for file upload...\n")
-  parsed_doc <- parse_document(mode = mode)
+  # Extract document (file picker opens in extract_document)
+  message("\nWaiting for file upload...\n")
+  extracted_doc <- extract_document(mode = mode)
 
-  # Extract file path from parsed document
-  file_path <- attr(parsed_doc, "file_path")
+  # Extract file path from extracted document
+  file_path <- attr(extracted_doc, "file_path")
 
-  total_pages <- nrow(parsed_doc)
-  cat(sprintf("Document parsed: %d pages\n", total_pages))
-  cat(sprintf("Processing all %d pages\n", total_pages))
+  total_pages <- nrow(extracted_doc)
+  message(sprintf("\nDocument extracted: %d pages\n", total_pages))
 
   # Build user messages (with automatic chunking if needed)
-  cat("Building user messages...\n")
+  message(sprintf("\nPreparing %d pages to send to API\n", total_pages))
   if (mode == "text") {
     user_message_chunks <- build_prompt_text(
-      parsed_document = parsed_doc,
+      extracted_document = extracted_doc,
       deliverable_type = document_type,
       audience = audience
     )
   } else {
     user_message_chunks <- build_prompt_images(
-      parsed_document = parsed_doc,
+      extracted_document = extracted_doc,
       deliverable_type = document_type,
       audience = audience
     )
-  }
-
-  num_chunks <- nrow(user_message_chunks)
-  if (num_chunks > 1) {
-    cat(sprintf("Document split into %d chunks\n", num_chunks))
   }
 
   # Initialize results list
@@ -123,33 +114,39 @@ process_document <- function(mode = c("text", "images"),
   api_metadata <- list()
 
   # Process each chunk
+  num_chunks <- nrow(user_message_chunks)
   for (i in seq_len(num_chunks)) {
     chunk <- user_message_chunks[i, ]
 
-    cat(sprintf("\n[Chunk %d/%d] Pages %d-%d...",
-                i, num_chunks,
-                chunk$page_start, chunk$page_end))
+    # Show different messages for single vs multi-chunk
+    if (num_chunks > 1) {
+      message(sprintf("\n[Chunk %d/%d] Sending pages %d-%d...",
+                  i, num_chunks,
+                  chunk$page_start, chunk$page_end))
+    } else {
+      message(sprintf("\nSending pages %d-%d...",
+                  chunk$page_start, chunk$page_end))
+    }
 
     # Call API based on mode
     tryCatch({
       if (mode == "text") {
-        result <- call_openai_api(
-          user_message = chunk$user_message,
-          system_prompt = SYSTEM_PROMPT
+        result <- call_openai_api_text(
+          user_message = chunk$user_message
         )
       } else {
+        # Use [[1]] to unwrap the list from the tibble list-column
         result <- call_openai_api_images(
-          user_content = chunk$user_message,
-          system_prompt = SYSTEM_PROMPT
+          user_content = chunk$user_message[[1]]
         )
       }
 
       # Store suggestions
       if (!is.null(result$suggestions) && length(result$suggestions) > 0) {
         all_suggestions <- c(all_suggestions, result$suggestions)
-        cat(sprintf(" %d suggestion(s) found", length(result$suggestions)))
+        message(sprintf(" %d suggestion(s) found", length(result$suggestions)))
       } else {
-        cat(" No issues found")
+        message(" No issues found")
       }
 
       # Store metadata
@@ -161,13 +158,12 @@ process_document <- function(mode = c("text", "images"),
       )
 
     }, error = function(e) {
-      cat(sprintf("\nError processing chunk %d: %s\n", i, e$message))
       warning(sprintf("Failed to process chunk %d (pages %d-%d): %s",
                      i, chunk$page_start, chunk$page_end, e$message))
     })
   }
 
-  cat(sprintf("\n\nProcessing complete!\n"))
+  message(sprintf("\n\nProcessing complete!\n"))
 
   # Convert to data frame
   results_df <- format_results(all_suggestions)
@@ -184,6 +180,15 @@ process_document <- function(mode = c("text", "images"),
   attr(results_df, "processed_at") <- Sys.time()
 
   print_summary(results_df)
+
+  # Auto-export results to CSV
+  if (nrow(results_df) > 0) {
+    base_name <- tools::file_path_sans_ext(basename(file_path))
+    timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    output_filename <- sprintf("%s_copyedit_%s.csv", base_name, timestamp)
+
+    export_results(results_df, output_filename = output_filename)
+  }
 
   return(results_df)
 }

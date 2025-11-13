@@ -1,7 +1,7 @@
 # ==============================================================================
-# Title:        Document Parser
+# Title:        Document Extracter
 # Last Updated: 2025-01-04
-# Description:  Functions to parse PDF documents for LLM copyediting.
+# Description:  Functions to extract content from PDF documents for LLM copyediting.
 #               Text mode for documents without images (extracts text by page).
 #               Image mode for documents with images (e.g., slide decks, embedded charts) (converts pages to images).
 # ==============================================================================
@@ -12,7 +12,7 @@
 #' @param file_path Path to PDF file
 #' @return A tibble with columns: page_number (integer) and content (character)
 #' @keywords internal
-parse_to_text <- function(file_path) {
+extract_to_text <- function(file_path) {
   # Extract text from PDF by page
   pages_text <- pdftools::pdf_text(file_path)
 
@@ -29,7 +29,7 @@ parse_to_text <- function(file_path) {
 #' @return A tibble with columns: page_number (integer) and image_path (character).
 #'   Images are saved to temporary directory and persist for the R session.
 #' @keywords internal
-parse_to_images <- function(file_path) {
+extract_to_images <- function(file_path) {
   # Convert PDF pages to PNG images in temp directory
   # Suppress warning from pdftools internal sprintf call
   image_paths <- suppressWarnings(
@@ -52,13 +52,13 @@ parse_to_images <- function(file_path) {
 
 # Main Function ----------------------------------------------------------------
 
-#' Parse PDF Document
+#' Extract PDF Document
 #'
 #' Opens a file picker to select a PDF document, then extracts content with two modes:
 #' - Text mode (default): For documents without images - extracts text by page
 #' - Images mode: For documents with images (e.g., slide decks, embedded charts) - converts pages to images for multimodal LLM
 #'
-#' @param mode Character. Parsing mode: "text" (default) or "images".
+#' @param mode Character. Extraction mode: "text" (default) or "images".
 #'   Use "text" for text-heavy documents like reports and publications.
 #'   Use "images" for visual-heavy documents like slide decks.
 #' @return A tibble with columns:
@@ -68,16 +68,16 @@ parse_to_images <- function(file_path) {
 #' @examples
 #' \dontrun{
 #'   # Text mode for publications (default)
-#'   doc <- parse_document()
+#'   doc <- extract_document()
 #'   doc$content[1]      # First page text
 #'
 #'   # Images mode for slide decks
-#'   slides <- parse_document(mode = "images")
+#'   slides <- extract_document(mode = "images")
 #'   slides$image_path[1]   # First page image path
 #' }
 #'
 #' @export
-parse_document <- function(mode = c("text", "images")) {
+extract_document <- function(mode = c("text", "images")) {
 
   # Match mode argument
   mode <- match.arg(mode)
@@ -104,13 +104,13 @@ parse_document <- function(mode = c("text", "images")) {
   }
 
   # Start parsing
-  cat("Parsing document...\n")
+  message("Parsing document...\n")
 
-  # Parse based on mode
+  # Extract content based on mode
   result <- if (mode == "text") {
-    parse_to_text(file_path)
+    extract_to_text(file_path)
   } else {
-    parse_to_images(file_path)
+    extract_to_images(file_path)
   }
 
   # Store file path in attributes

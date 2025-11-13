@@ -1,7 +1,7 @@
 # ==============================================================================
 # Title:        Prompt Builder
 # Last Updated: 2025-11-05
-# Description:  Functions to build user message for LLM prompt from parsed text document.
+# Description:  Functions to build user message for LLM prompt from extracted text document.
 #               Combines document content with project context (deliverable type, audience).
 #               Handles automatic chunking for large documents that would exceed token limits.
 #               Uses rtiktoken for accurate token counting matching OpenAI's tokenizers.
@@ -36,18 +36,18 @@ context_header <- function(deliverable_type, audience) {
 
 #' Combine pages and content
 #'
-#' Combines all pages from the parsed document tibble into a single text string.
+#' Combines all pages from the extracted document tibble into a single text string.
 #'
-#' @param parsed_document Tibble. Output from parse_document() with columns
+#' @param extracted_document Tibble. Output from extract_document() with columns
 #'   page_number and content.
 #'
 #' @return Character string with all pages combined
 #' @keywords internal
-combine_pages <- function(parsed_document) {
+combine_pages <- function(extracted_document) {
   # Format each page as "page X:\n{content}"
   combined_pages <- purrr::map2_chr(
-    parsed_document$page_number,
-    parsed_document$content,
+    extracted_document$page_number,
+    extracted_document$content,
     ~ paste0("page ", .x, ":\n", .y)
   )
 
@@ -86,10 +86,10 @@ estimate_tokens <- function(text, model = "gpt-4") {
 
 #' Chunk Document into Context Window Sized Pieces
 #'
-#' Splits a parsed document into chunks that fit within the token limit.
+#' Splits a extracted document into chunks that fit within the token limit.
 #' Each chunk contains a formatted user message.
 #'
-#' @param parsed_document Tibble. Output from parse_document() with columns
+#' @param extracted_document Tibble. Output from extract_document() with columns
 #'   page_number and content.
 #' @param deliverable_type Character. Type of deliverable.
 #' @param audience Character. Target audience description.
@@ -98,7 +98,7 @@ estimate_tokens <- function(text, model = "gpt-4") {
 #'
 #' @return Tibble with columns: chunk_id, page_start, page_end, user_message.
 #' @keywords internal
-chunk_document <- function(parsed_document, deliverable_type, audience, token_limit, model = "gpt-4") {
+chunk_document <- function(extracted_document, deliverable_type, audience, token_limit, model = "gpt-4") {
   # Create document header (same for all chunks)
   header <- context_header(deliverable_type, audience)
   header_tokens <- estimate_tokens(header, model = model)
@@ -121,9 +121,9 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
   page_start <- NULL
 
   # Iterate through pages
-  for (i in seq_len(nrow(parsed_document))) {
-    page_num <- parsed_document$page_number[i]
-    page_content <- parsed_document$content[i]
+  for (i in seq_len(nrow(extracted_document))) {
+    page_num <- extracted_document$page_number[i]
+    page_content <- extracted_document$content[i]
 
     # Format the page and estimate its tokens
     formatted_page <- paste0("page ", page_num, ":\n", page_content)
@@ -208,10 +208,10 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #' Build Prompt for Text-based API
 #'
 #' Constructs user messages for LLM API requests with automatic chunking if the
-#' document exceeds the context window limit. Takes a parsed document and formats it
+#' document exceeds the context window limit. Takes a extracted document and formats it
 #' with deliverable type and audience information.
 #'
-#' @param parsed_document Tibble. Output from parse_document(mode = "text") with columns
+#' @param extracted_document Tibble. Output from extract_document(mode = "text") with columns
 #'   page_number and content.
 #' @param deliverable_type Character. Type of deliverable (e.g., "external field-facing",
 #'   "external client-facing", "internal").
@@ -240,9 +240,9 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #'
 #' @examples
 #' \dontrun{
-#'   # Build prompt(s) from parsed document - may return single or multiple chunks
+#'   # Build prompt(s) from extracted document - may return single or multiple chunks
 #'   prompts <- build_prompt_text(
-#'     parsed_document = parsed_doc,
+#'     extracted_document = extracted_doc,
 #'     deliverable_type = "external client-facing",
 #'     audience = "Healthcare executives"
 #'   )
@@ -255,7 +255,7 @@ chunk_document <- function(parsed_document, deliverable_type, audience, token_li
 #' }
 #'
 #' @export
-build_prompt_text <- function(parsed_document,
+build_prompt_text <- function(extracted_document,
                         deliverable_type,
                         audience) {
 
@@ -264,12 +264,12 @@ build_prompt_text <- function(parsed_document,
   model <- MODEL_TEXT
 
   # Validate inputs
-  if (missing(parsed_document) || !inherits(parsed_document, "data.frame")) {
-    stop("parsed_document must be a tibble/data.frame from parse_document()")
+  if (missing(extracted_document) || !inherits(extracted_document, "data.frame")) {
+    stop("extracted_document must be a tibble/data.frame from extract_document()")
   }
 
-  if (!"page_number" %in% names(parsed_document) || !"content" %in% names(parsed_document)) {
-    stop("parsed_document must have 'page_number' and 'content' columns")
+  if (!"page_number" %in% names(extracted_document) || !"content" %in% names(extracted_document)) {
+    stop("extracted_document must have 'page_number' and 'content' columns")
   }
 
   if (missing(deliverable_type) || is.null(deliverable_type) || nchar(trimws(deliverable_type)) == 0) {
@@ -287,11 +287,10 @@ build_prompt_text <- function(parsed_document,
 
   # Build header and format all pages
   header <- context_header(deliverable_type, audience)
-  all_pages <- combine_pages(parsed_document)
-  system_prompt <- load_system_prompt()
+  all_pages <- combine_pages(extracted_document)
 
   # Construct full inputs
-  all_inputs <- paste0(system_prompt, "\n\n", header, "\n\nFile:\n\n", all_pages)
+  all_inputs <- paste0(SYSTEM_PROMPT, "\n\n", header, "\n\nFile:\n\n", all_pages)
 
   # Count total tokens
   total_tokens <- estimate_tokens(all_inputs, model = model)
@@ -307,8 +306,8 @@ build_prompt_text <- function(parsed_document,
     user_message <- paste0(header, "\n\nFile:\n\n", all_pages)
     result <- tibble::tibble(
       chunk_id = 1L,
-      page_start = min(parsed_document$page_number),
-      page_end = max(parsed_document$page_number),
+      page_start = min(extracted_document$page_number),
+      page_end = max(extracted_document$page_number),
       user_message = user_message
     )
   } else {
@@ -318,7 +317,7 @@ build_prompt_text <- function(parsed_document,
     ))
 
     result <- chunk_document(
-      parsed_document = parsed_document,
+      extracted_document = extracted_document,
       deliverable_type = deliverable_type,
       audience = audience,
       token_limit = context_window,
