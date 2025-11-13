@@ -1,112 +1,175 @@
 # Configuration Files
 
-This directory contains templates and configuration files for the bw-copyeditor tool.
+Configuration files for the bw-copyeditor tool.
 
 ## Files
 
+### `model_config.R`
+
+Central configuration for models, token limits, and API settings.
+
+**Key settings:**
+- `MODEL_TEXT` - Model for text mode (default: "gpt-5")
+- `MODEL_IMAGES` - Model for image mode (default: "gpt-5")
+- `CONTEXT_WINDOW_TEXT` - Token limit for text mode (400,000)
+- `CONTEXT_WINDOW_IMAGES` - Token limit for image mode (180,000)
+- `IMAGES_PER_CHUNK` - Images per chunk in image mode (20)
+- `DETAIL` - Image detail level: "high" or "low" (default: "high")
+- `REASONING_LEVEL` - GPT-5 reasoning effort: "low", "minimal", "high" (default: "minimal")
+- `MAX_RETRY_ATTEMPTS` - Retry attempts for API failures (3)
+- `MAX_COMPLETION_TOKENS_IMAGES` - Max output tokens for image mode (30,000)
+
+**To customize:**
+1. Open `config/model_config.R`
+2. Edit the configuration constants
+3. Save and reload your R session
+
 ### `system_prompt.txt`
 
-The system prompt that includes copyediting instructions and style guide. This file is automatically loaded by `call_openai_api()` and `call_openai_api_images()` when no custom system prompt is provided.
+The copyediting instructions and Bellwether style guide. Automatically loaded by the tool.
 
-**Usage:**
-1. Edit this file to customize the copyediting instructions and style guide
-2. The functions will automatically load it from `config/system_prompt.txt`
-3. Or load it manually in your R script if needed:
-
-```r
-system_prompt <- load_system_prompt("config/system_prompt.txt")
-
-results <- process_document(
-  file_path = "document.pdf",
-  system_prompt = system_prompt
-)
-```
+**To customize:**
+1. Edit `config/system_prompt.txt`
+2. Keep the JSON output structure intact
+3. Modify the style guide rules as needed
 
 **What to customize:**
-- General conventions (voice, tone, language preferences)
+- Writing style preferences (voice, tone)
 - Organization-specific terminology
-- Number and date formatting rules
-- Punctuation preferences
-- Citation and reference styles
-- Severity guidelines (what counts as critical vs. optional)
+- Number and date formatting
+- Punctuation rules
+- Citation styles
+- Severity guidelines
 
-### `project_context_template.txt`
+**Important**: The system prompt expects JSON output. Do not remove the JSON structure requirements.
 
-Template for providing project-specific context to the copyeditor.
+## How Configuration Works
 
-**Usage:**
-1. For each project, fill out the relevant sections of this template
-2. Pass the completed text as the `project_context` parameter:
+The tool automatically loads configuration when you run `process_document()`:
 
 ```r
-project_context <- "
-PROJECT INFORMATION:
-Project Name: Q4 2024 Report
-Client: ABC Corp
-...
-"
+# Load main function (sources config automatically)
+source("R/process_document.R")
 
+# Configuration is loaded from:
+# - config/model_config.R (model settings)
+# - config/system_prompt.txt (style guide)
+```
+
+## Document Type and Audience
+
+Instead of custom project context files, the tool uses two parameters:
+
+```r
 results <- process_document(
-  file_path = "document.pdf",
-  project_context = project_context
+  mode = "text",
+  document_type = "external client-facing",
+  audience = "Healthcare executives"
 )
 ```
 
-**What to include:**
-- Project and client information
-- Document type and target audience
-- Subject matter and key terminology
-- Tone and style preferences
-- Any project-specific considerations
+These parameters are automatically included in the prompt sent to the API.
 
-## Tips
+**Common document types:**
+- "external client-facing"
+- "external field-facing"
+- "internal"
 
-1. **Keep system prompts stable**: Create one system prompt per organization or document type, and reuse it consistently. This ensures consistent copyediting standards.
+**Audience examples:**
+- "Healthcare executives"
+- "Technical staff"
+- "Leadership team"
+- "General public"
 
-2. **Update project context frequently**: The project context should be tailored for each specific document or client engagement.
+## Customizing for Different Projects
 
-3. **Version control**: Track changes to your system prompts so you can understand how your copyediting standards evolve over time.
+### Option 1: Multiple System Prompts
 
-4. **Test iteratively**: Start with a simple system prompt and gradually add more specific rules based on the types of issues you encounter.
-
-5. **Token limits**: Very long system prompts increase API costs. Keep prompts focused on the most important rules.
-
-## Example Organization
-
-You might organize your configuration files like this:
+Create different system prompt files for different clients or document types:
 
 ```
 config/
-├── system_prompts/
-│   ├── bellwether_general.txt       # General organizational style
-│   ├── bellwether_technical.txt     # For technical reports
-│   ├── bellwether_executive.txt     # For executive summaries
-│   └── client_specific/
-│       ├── client_a.txt             # Client-specific style
-│       └── client_b.txt
-├── project_contexts/
-│   ├── 2024_q1_report.txt
-│   ├── 2024_q2_report.txt
-│   └── templates/
-│       ├── quarterly_report.txt
-│       └── technical_memo.txt
-└── README.md
+├── model_config.R
+├── system_prompt.txt              # Default
+├── system_prompt_technical.txt    # For technical docs
+└── system_prompt_client_a.txt     # Client-specific
 ```
 
-Then in your R scripts:
+Then modify `config/model_config.R` to load the appropriate file:
 
 ```r
-# Load appropriate system prompt
-system_prompt <- load_system_prompt("config/system_prompts/bellwether_technical.txt")
-
-# Load project context
-project_context_file <- "config/project_contexts/2024_q1_report.txt"
-project_context <- paste(readLines(project_context_file), collapse = "\n")
-
-# Process document
-results <- process_document(
-  file_path = "report.pdf",
-  system_prompt = system_prompt,
-  project_context = project_context
-)
+# In model_config.R, change this line:
+SYSTEM_PROMPT <- load_system_prompt(file.path("config", "system_prompt_technical.txt"))
 ```
+
+### Option 2: Environment-Specific Settings
+
+Use different `model_config.R` settings for different projects:
+
+```r
+# For cost-sensitive projects:
+MODEL_TEXT <- "gpt-4o"  # Instead of gpt-5
+
+# For high-priority projects:
+REASONING_LEVEL <- "high"  # Instead of minimal
+```
+
+## Tips
+
+1. **Test changes incrementally**: Process a sample document after each config change
+2. **Monitor token usage**: Check console output for token counts and costs
+3. **Balance quality vs. cost**: GPT-5 with "minimal" reasoning is good for most copyediting
+4. **Keep system prompts focused**: Long prompts increase API costs
+5. **Version control**: Track changes to system prompts in git
+
+## Token Limits and Chunking
+
+The tool automatically chunks large documents based on these settings:
+
+- **Text mode**: Uses `CONTEXT_WINDOW_TEXT` (400K tokens)
+  - Counts exact tokens using `rtiktoken` package
+  - Splits at 90% of limit for safety
+
+- **Image mode**: Uses `IMAGES_PER_CHUNK` (20 images)
+  - Each high-detail image ~2,805 tokens
+  - Total limit: `CONTEXT_WINDOW_IMAGES` (180K tokens)
+
+To process larger documents:
+- Increase `CONTEXT_WINDOW_TEXT` if your model supports it
+- Adjust `IMAGES_PER_CHUNK` for image mode (balance between chunks and total tokens)
+
+## Example Customization
+
+For a technical documentation project:
+
+1. **Edit `config/system_prompt.txt`:**
+   ```
+   You are a technical copyeditor specializing in software documentation.
+
+   Key rules:
+   - Use active voice
+   - Prefer "we" over "I"
+   - Technical terms: keep consistent (e.g., "API" not "api")
+   ...
+   ```
+
+2. **Adjust `config/model_config.R` if needed:**
+   ```r
+   MODEL_TEXT <- "gpt-4o"  # Lower cost for routine edits
+   REASONING_LEVEL <- "minimal"  # Fast responses
+   ```
+
+3. **Use in your script:**
+   ```r
+   source("R/process_document.R")
+
+   results <- process_document(
+     mode = "text",
+     document_type = "technical documentation",
+     audience = "Software developers"
+   )
+   ```
+
+## Support
+
+For questions about configuration, see the main `README.md` or `CLAUDE.md` for project context.

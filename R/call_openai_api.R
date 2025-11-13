@@ -23,9 +23,8 @@ validate_api_key <- function() {
 #'
 #' Wraps API calls with automatic retry on rate limits and server errors.
 #'
-#' @param fn Function. The function to execute with retry logic.
-#' @param max_attempts Integer. Maximum retry attempts (default: MAX_RETRY_ATTEMPTS).
-#'
+#' @param fn Function to execute with retry logic.
+#' @param max_attempts Maximum retry attempts.
 #' @return Result from fn().
 #' @keywords internal
 with_retry <- function(fn, max_attempts = MAX_RETRY_ATTEMPTS) {
@@ -74,12 +73,11 @@ with_retry <- function(fn, max_attempts = MAX_RETRY_ATTEMPTS) {
 
 #' Parse JSON Response from API
 #'
-#' Extracts and parses the copyediting suggestions from the API response.
+#' Extracts and parses copyediting suggestions from API response.
 #'
-#' @param response Character. Response content from chat$chat().
-#' @param model Character. Model name used.
-#' @param chat Chat object. The ellmer chat session.
-#'
+#' @param response Response content from chat$chat().
+#' @param model Model name used.
+#' @param chat The ellmer chat session.
 #' @return List with parsed suggestions and metadata.
 #' @keywords internal
 parse_json_response <- function(response, model, chat) {
@@ -143,40 +141,21 @@ parse_json_response <- function(response, model, chat) {
 
 # Main Functions --------------------------------------------------------------
 
-#' Call OpenAI API for Copyediting (Text Mode)
+#' Call OpenAI API (Text Mode)
 #'
-#' Sends a text-only request to the OpenAI API using the ellmer package and
-#' returns the parsed response. For documents with images, use call_openai_api_images()
-#' instead.
+#' Sends text to OpenAI API for copyediting. For images, use call_openai_api_images().
 #'
-#' @param user_message Character. The user message text from build_prompt_text() for text mode.
-#' @param system_prompt Character. The system prompt with copyediting instructions.
-#'   If NULL, loads from config/system_prompt.txt.
-#'
-#' @details
-#' This function uses the model specified in MODEL_TEXT (from config/model_config.R).
-#' To change the model, edit MODEL_TEXT in config/model_config.R.
-#'
-#' Note: GPT-5 (reasoning model) does not support the temperature parameter.
-#' Uses reasoning_effort = "minimal" for faster responses on copyediting tasks.
-#' Retry settings are configured in config/model_config.R via MAX_RETRY_ATTEMPTS.
-#'
-#' @return A list with:
-#'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
-#'   \item{model}{Model used for the request}
-#'   \item{usage}{Token usage information (if available)}
-#'   \item{response_metadata}{Full response metadata}
+#' @param user_message User message text from build_prompt_text().
+#' @return List with suggestions, model, usage, and response_metadata.
 #'
 #' @examples
 #' \dontrun{
-#'   # Parse document and build user messages
-#'   extracted <- extract_document(mode = "text")
-#'   user_msgs <- build_prompt_text(extracted, "external client-facing", "Healthcare executives")
+#'   # Extract and build prompt
+#'   doc <- extract_document(mode = "text")
+#'   prompts <- build_prompt_text(doc, "external client-facing", "Healthcare executives")
 #'
-#'   result <- call_openai_api(
-#'     user_message = user_msgs$user_message[1]
-#'   )
-#'   suggestions <- result$suggestions
+#'   # Call API
+#'   result <- call_openai_api_text(prompts$user_message[1])
 #' }
 #'
 #' @export
@@ -220,57 +199,22 @@ call_openai_api_text <- function(user_message) {
 }
 
 
-#' Call OpenAI API for Copyediting (Image Mode)
+#' Call OpenAI API (Image Mode)
 #'
-#' Sends a multimodal request (text + images) to the OpenAI Vision API using
-#' the ellmer package and returns the parsed response. For text-only documents,
-#' use call_openai_api() instead.
+#' Sends images to OpenAI Vision API for copyediting. More expensive than text mode.
+#' For text-only documents, use call_openai_api_text().
 #'
-#' @param user_content List. The ellmer-formatted content from build_prompt_images().
-#'   This should be a list of ellmer content objects (strings and content_image_file).
-#' @param system_prompt Character. The system prompt with copyediting instructions.
-#'   If NULL, loads from config/system_prompt.txt.
-#'
-#' @details
-#' This function uses the model specified in MODEL_IMAGES (from config/model_config.R).
-#' To change the model, edit MODEL_IMAGES in config/model_config.R.
-#'
-#' Max_completion_tokens and retry settings are configured in config/model_config.R via
-#' MAX_COMPLETION_TOKENS_IMAGES and MAX_RETRY_ATTEMPTS.
-#'
-#' @return A list with:
-#'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
-#'   \item{model}{Model used for the request}
-#'   \item{usage}{Token usage information (if available)}
-#'   \item{response_metadata}{Full response metadata}
-#'
-#' @details
-#' This function is designed for documents extracted in image mode (slide decks,
-#' presentations, or documents with visual elements like charts/diagrams).
-#' Images are handled by ellmer's content_image_file() helper. This is significantly
-#' more expensive than text mode - use only when visual elements matter.
-#'
-#' The user_content parameter should be a list-column from build_prompt_images()
-#' containing ellmer-formatted content (plain strings for text, content_image_file
-#' objects for images).
+#' @param user_content Ellmer-formatted content from build_prompt_images().
+#' @return List with suggestions, model, usage, and response_metadata.
 #'
 #' @examples
 #' \dontrun{
-#'   # extract document as images
+#'   # Extract and build prompt
 #'   slides <- extract_document(mode = "images")
+#'   prompts <- build_prompt_images(slides, "external client-facing", "Healthcare executives")
 #'
-#'   # Build multimodal prompt (returns ellmer format)
-#'   prompts <- build_prompt_images(
-#'     slides,
-#'     "external client-facing",
-#'     "Healthcare executives"
-#'   )
-#'
-#'   # Call API for first chunk (requires OPENAI_API_KEY environment variable)
-#'   result <- call_openai_api_images(
-#'     user_content = prompts$user_message[[1]]
-#'   )
-#'   suggestions <- result$suggestions
+#'   # Call API
+#'   result <- call_openai_api_images(prompts$user_message[[1]])
 #' }
 #'
 #' @export

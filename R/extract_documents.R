@@ -54,26 +54,20 @@ extract_to_images <- function(file_path) {
 
 #' Extract PDF Document
 #'
-#' Opens a file picker to select a PDF document, then extracts content with two modes:
-#' - Text mode (default): For documents without images - extracts text by page
-#' - Images mode: For documents with images (e.g., slide decks, embedded charts) - converts pages to images for multimodal LLM
+#' Opens a file picker and extracts content from a PDF.
 #'
-#' @param mode Character. Extraction mode: "text" (default) or "images".
-#'   Use "text" for text-heavy documents like reports and publications.
-#'   Use "images" for visual-heavy documents like slide decks.
-#' @return A tibble with columns:
-#'   - Text mode: page_number (int), content (chr)
-#'   - Images mode: page_number (int), image_path (chr)
+#' @param mode Extraction mode: "text" (default) or "images".
+#'   Text mode: For reports and publications.
+#'   Images mode: For slide decks with visuals.
+#' @return A table with page numbers and either text content or image file paths.
 #'
 #' @examples
 #' \dontrun{
-#'   # Text mode for publications (default)
+#'   # Extract text from a report
 #'   doc <- extract_document()
-#'   doc$content[1]      # First page text
 #'
-#'   # Images mode for slide decks
+#'   # Extract images from a slide deck
 #'   slides <- extract_document(mode = "images")
-#'   slides$image_path[1]   # First page image path
 #' }
 #'
 #' @export

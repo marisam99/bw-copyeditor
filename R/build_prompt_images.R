@@ -11,13 +11,11 @@
 
 #' Project Context Header
 #'
-#' Creates the header section with deliverable type and audience information.
+#' Creates the header section with document type and audience.
 #'
-#' @param deliverable_type Character. Type of deliverable (e.g., "external field-facing",
-#'   "external client-facing", "internal").
-#' @param audience Character. Description of the target audience.
-#'
-#' @return Character string with formatted header.
+#' @param deliverable_type Type of document (e.g., "external client-facing", "internal").
+#' @param audience Target audience description.
+#' @return Formatted header text.
 #' @keywords internal
 context_header <- function(deliverable_type, audience) {
   header <- paste0(
@@ -32,14 +30,10 @@ context_header <- function(deliverable_type, audience) {
 
 #' Estimate Token Count for Image
 #'
-#' Returns the estimated token cost for processing an image with OpenAI's vision models.
-#' Token costs are fixed based on detail level, not image content.
+#' Returns token cost for processing an image (fixed based on detail level).
 #'
-#' @param detail Character. Detail level: "high" or "low" (default: "high").
-#'   - "high": ~2,805 tokens per image (tiles image for detail, better for reading text)
-#'   - "low": 85 tokens per image (resizes to 512x512, may miss small text)
-#'
-#' @return Integer. Estimated token count.
+#' @param detail Detail level: "high" (~2,805 tokens, better for text) or "low" (85 tokens).
+#' @return Estimated token count.
 #' @keywords internal
 estimate_image_tokens <- function(detail = "high") {
   # Token costs from OpenAI Vision API documentation
@@ -54,18 +48,15 @@ estimate_image_tokens <- function(detail = "high") {
 }
 
 
-#' Build Multimodal Content Array (ellmer Format)
+#' Build Multimodal Content
 #'
-#' Constructs the multimodal content structure using ellmer's helper functions,
-#' combining text context with images.
+#' Constructs multimodal content combining text context with images.
 #'
-#' @param extracted_document Tibble. Output from extract_document(mode = "images") with
-#'   columns page_number and image_path.
-#' @param deliverable_type Character. Type of deliverable.
-#' @param audience Character. Target audience description.
-#' @param detail Character. Image detail level: "high" or "low" (default: "high").
-#'
-#' @return List of ellmer content objects (strings and content_image_file objects).
+#' @param extracted_document Output from extract_document(mode = "images").
+#' @param deliverable_type Type of document.
+#' @param audience Target audience.
+#' @param detail Image detail level (default: "high").
+#' @return List of ellmer content objects.
 #' @keywords internal
 build_multimodal_content <- function(extracted_document, deliverable_type, audience, detail = "high") {
 
@@ -103,18 +94,15 @@ build_multimodal_content <- function(extracted_document, deliverable_type, audie
 
 #' Chunk Document by Image Count
 #'
-#' Splits a extracted document into chunks based on number of images per chunk,
-#' ensuring each chunk stays within token and payload limits.
+#' Splits document into chunks based on image count.
 #'
-#' @param extracted_document Tibble. Output from extract_document(mode = "images") with
-#'   columns page_number and image_path.
-#' @param deliverable_type Character. Type of deliverable.
-#' @param audience Character. Target audience description.
-#' @param images_per_chunk Integer. Maximum images per chunk (default: 20).
-#' @param detail Character. Image detail level: "high" or "low" (default: "high").
-#' @param model Character. Model name for reference (default: "gpt-4o").
-#'
-#' @return Tibble with columns: chunk_id, page_start, page_end, user_message.
+#' @param extracted_document Output from extract_document(mode = "images").
+#' @param deliverable_type Type of document.
+#' @param audience Target audience.
+#' @param images_per_chunk Maximum images per chunk (default: 20).
+#' @param detail Image detail level (default: "high").
+#' @param model Model name (default: "gpt-4o").
+#' @return Table with chunk_id, page_start, page_end, user_message.
 #' @keywords internal
 chunk_by_images <- function(extracted_document,
                             deliverable_type,
@@ -188,60 +176,25 @@ chunk_by_images <- function(extracted_document,
 
 # Main Function ---------------------------------------------------------------
 
-#' Build Prompt for Multimodal API (Images)
+#' Build Prompt for Image Mode
 #'
-#' Constructs user messages for vision-capable LLM API requests with automatic chunking.
-#' Takes a extracted document with images and formats it using ellmer's multimodal content
-#' helpers, combining deliverable type and audience information with images.
+#' Creates formatted prompts from extracted images. Automatically splits large documents into chunks.
+#' Use only for slide decks or documents with visual elements. For text-only documents, use build_prompt_text().
 #'
-#' @param extracted_document Tibble. Output from extract_document(mode = "images") with
-#'   columns page_number and image_path.
-#' @param deliverable_type Character. Type of deliverable (e.g., "external field-facing",
-#'   "external client-facing", "internal").
-#' @param audience Character. Description of the target audience.
-#'
-#' @return Tibble with columns:
-#'   \item{chunk_id}{Integer. Sequential chunk identifier}
-#'   \item{page_start}{Integer. First page number in chunk}
-#'   \item{page_end}{Integer. Last page number in chunk}
-#'   \item{user_message}{List. ellmer-formatted content (strings and content_image_file objects)}
-#'
-#' @details
-#' The function automatically chunks documents to stay within token and payload limits.
-#' Each chunk contains up to `images_per_chunk` pages, with images formatted using
-#' ellmer::content_image_file() which handles encoding automatically.
-#' Images are processed at "high" detail level (~2,805 tokens per image) to ensure
-#' small text is readable for copyediting.
-#'
-#' Model settings (context window, chunk size, model name, detail level) are configured
-#' as constants at the top of this script and can be adjusted there as needed.
-#'
-#' The returned user_message is a list-column containing ellmer content objects (plain
-#' strings for text, content_image_file objects for images). This differs from text mode
-#' where user_message is a character string.
-#'
-#' IMPORTANT: Image mode is more expensive and slower than text mode.
-#' Use image mode only for documents where visual elements matter (e.g., slide decks,
-#' documents with text in charts/diagrams). For pure text documents, use build_prompt_text()
-#' with extract_document(mode = "text") instead.
+#' @param extracted_document Output from extract_document(mode = "images").
+#' @param deliverable_type Type of document (e.g., "external client-facing", "internal").
+#' @param audience Target audience description.
+#' @return Table with chunk_id, page_start, page_end, and user_message (list-column with ellmer content).
 #'
 #' @examples
 #' \dontrun{
-#'   # extract document as images
+#'   # Build prompts from slide deck
 #'   slides <- extract_document(mode = "images")
-#'
-#'   # Build prompt(s) - may return single or multiple chunks
 #'   prompts <- build_prompt_images(
 #'     extracted_document = slides,
 #'     deliverable_type = "external client-facing",
 #'     audience = "Healthcare executives"
 #'   )
-#'
-#'   # Check number of chunks
-#'   nrow(prompts)
-#'
-#'   # Access the multimodal content for first chunk
-#'   prompts$user_message[[1]]
 #' }
 #'
 #' @export

@@ -15,13 +15,11 @@ source(file.path("config", "model_config.R"))
 
 #' Project Context Header
 #'
-#' Creates the header section with deliverable type and audience information.
+#' Creates the header section with document type and audience.
 #'
-#' @param deliverable_type Character. Type of deliverable (e.g., "external field-facing",
-#'   "external client-facing", "internal").
-#' @param audience Character. Description of the target audience.
-#'
-#' @return Character string with formatted header.
+#' @param deliverable_type Type of document (e.g., "external client-facing", "internal").
+#' @param audience Target audience description.
+#' @return Formatted header text.
 #' @keywords internal
 context_header <- function(deliverable_type, audience) {
   header <- paste0(
@@ -36,12 +34,10 @@ context_header <- function(deliverable_type, audience) {
 
 #' Combine pages and content
 #'
-#' Combines all pages from the extracted document tibble into a single text string.
+#' Combines all pages into a single text string.
 #'
-#' @param extracted_document Tibble. Output from extract_document() with columns
-#'   page_number and content.
-#'
-#' @return Character string with all pages combined
+#' @param extracted_document Output from extract_document() with page_number and content columns.
+#' @return Combined text from all pages.
 #' @keywords internal
 combine_pages <- function(extracted_document) {
   # Format each page as "page X:\n{content}"
@@ -60,14 +56,11 @@ combine_pages <- function(extracted_document) {
 
 #' Estimate Token Count
 #'
-#' Counts tokens in a text string using the rtiktoken package.
-#' This provides exact token counts matching what OpenAI's API will use.
+#' Counts tokens in text using exact tokenizer for the model.
 #'
-#' @param text Character. Text to count tokens for.
-#' @param model Character. Model name to determine which tokenizer to use
-#'   (default: "gpt-4").
-#'
-#' @return Integer. Exact token count.
+#' @param text Text to count tokens for.
+#' @param model Model name (default: "gpt-4").
+#' @return Exact token count.
 #' @keywords internal
 estimate_tokens <- function(text, model = "gpt-4") {
   # Handle newer models not yet supported by rtiktoken
@@ -84,19 +77,16 @@ estimate_tokens <- function(text, model = "gpt-4") {
 }
 
 
-#' Chunk Document into Context Window Sized Pieces
+#' Chunk Document
 #'
-#' Splits a extracted document into chunks that fit within the token limit.
-#' Each chunk contains a formatted user message.
+#' Splits document into chunks that fit within the token limit.
 #'
-#' @param extracted_document Tibble. Output from extract_document() with columns
-#'   page_number and content.
-#' @param deliverable_type Character. Type of deliverable.
-#' @param audience Character. Target audience description.
-#' @param token_limit Integer. Maximum tokens per chunk (uses 90% for safety).
-#' @param model Character. Model name for tokenization (default: "gpt-4").
-#'
-#' @return Tibble with columns: chunk_id, page_start, page_end, user_message.
+#' @param extracted_document Output from extract_document().
+#' @param deliverable_type Type of document.
+#' @param audience Target audience.
+#' @param token_limit Maximum tokens per chunk.
+#' @param model Model name (default: "gpt-4").
+#' @return Table with chunk_id, page_start, page_end, user_message.
 #' @keywords internal
 chunk_document <- function(extracted_document, deliverable_type, audience, token_limit, model = "gpt-4") {
   # Create document header (same for all chunks)
@@ -205,53 +195,23 @@ chunk_document <- function(extracted_document, deliverable_type, audience, token
 
 # Main Function ---------------------------------------------------------------
 
-#' Build Prompt for Text-based API
+#' Build Prompt for Text Mode
 #'
-#' Constructs user messages for LLM API requests with automatic chunking if the
-#' document exceeds the context window limit. Takes a extracted document and formats it
-#' with deliverable type and audience information.
+#' Creates formatted prompts from extracted text. Automatically splits large documents into chunks.
 #'
-#' @param extracted_document Tibble. Output from extract_document(mode = "text") with columns
-#'   page_number and content.
-#' @param deliverable_type Character. Type of deliverable (e.g., "external field-facing",
-#'   "external client-facing", "internal").
-#' @param audience Character. Description of the target audience.
-#'
-#' @return Tibble with columns:
-#'   \item{chunk_id}{Integer. Sequential chunk identifier}
-#'   \item{page_start}{Integer. First page number in chunk}
-#'   \item{page_end}{Integer. Last page number in chunk}
-#'   \item{user_message}{Character. Formatted user message text}
-#'
-#' @details
-#' The function first attempts to fit the entire document in a single message.
-#' If the token count exceeds 90% of the context window, the document
-#' is automatically split into multiple chunks, with each chunk staying within
-#' the token limit. Pages are never split mid-page.
-#'
-#' Token counting uses the rtiktoken package for exact token counts
-#' matching the specified model's tokenizer.
-#'
-#' Model settings (context window and model name) are configured in config/model_config.R
-#' and can be adjusted there as needed.
-#'
-#' The returned user_message does NOT include the system prompt - that should be
-#' added separately by the caller.
+#' @param extracted_document Output from extract_document(mode = "text").
+#' @param deliverable_type Type of document (e.g., "external client-facing", "internal").
+#' @param audience Target audience description.
+#' @return Table with chunk_id, page_start, page_end, and user_message columns.
 #'
 #' @examples
 #' \dontrun{
-#'   # Build prompt(s) from extracted document - may return single or multiple chunks
+#'   # Build prompts from extracted document
 #'   prompts <- build_prompt_text(
-#'     extracted_document = extracted_doc,
+#'     extracted_document = doc,
 #'     deliverable_type = "external client-facing",
 #'     audience = "Healthcare executives"
 #'   )
-#'
-#'   # Check if chunking was needed
-#'   nrow(prompts)  # 1 = single chunk, >1 = multiple chunks
-#'
-#'   # Access the user message for first chunk
-#'   prompts$user_message[1]
 #' }
 #'
 #' @export

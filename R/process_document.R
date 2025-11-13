@@ -20,45 +20,31 @@ source(file.path("R", "process_results.R"))
 
 #' Process Document for Copyediting
 #'
-#' Main orchestrator function that processes an entire document through the
-#' copyediting pipeline. Extractss the document, builds prompts with automatic
-#' chunking if needed, sends to OpenAI API, and returns a structured data frame.
+#' Main function that processes a PDF through the copyediting pipeline.
+#' Opens a file picker, extracts content, sends to API, and returns results.
 #'
-#' @param mode Character. Processing mode: "text" (default) or "images".
-#'   Use "text" for text-heavy documents (reports, publications).
-#'   Use "images" for visual-heavy documents (slide decks, presentations).
-#' @param document_type Character. Type of document (e.g., "external field-facing",
-#'   "external client-facing", "internal").
-#' @param audience Character. Description of the target audience.
-#'
-#' @return A data frame with columns:
-#'   \item{page_number}{Integer. Page number where issue was found}
-#'   \item{issue}{Character. Brief description of the issue}
-#'   \item{original_text}{Character. The problematic text}
-#'   \item{suggested_edit}{Character. Proposed correction}
-#'   \item{rationale}{Character. Explanation of why edit is needed}
-#'   \item{severity}{Character. Importance level (critical, recommended, optional)}
-#'   \item{confidence}{Numeric. Confidence score (0-1)}
-#'   \item{is_valid}{Logical. TRUE if row has required fields}
+#' @param mode Processing mode: "text" (default) or "images".
+#'   Text mode: For reports and publications.
+#'   Images mode: For slide decks with visuals.
+#' @param document_type Type of document (e.g., "external client-facing", "internal").
+#' @param audience Target audience description.
+#' @return Table with page_number, issue, original_text, suggested_edit, rationale, severity, confidence, and is_valid.
 #'
 #' @examples
 #' \dontrun{
-#'   # Text mode (default) - for reports/publications
+#'   # Process a report
 #'   results <- process_document(
 #'     mode = "text",
 #'     document_type = "external client-facing",
 #'     audience = "Healthcare executives"
 #'   )
 #'
-#'   # Image mode - for slide decks
+#'   # Process a slide deck
 #'   results <- process_document(
 #'     mode = "images",
-#'     document_type = "external client-facing",
-#'     audience = "Healthcare executives"
+#'     document_type = "internal",
+#'     audience = "Leadership team"
 #'   )
-#'
-#'   # Export results
-#'   export_results(results, "copyedit_results.csv")
 #' }
 #'
 #' @export
