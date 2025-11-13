@@ -97,6 +97,7 @@ parse_json_response <- function(response, model, chat) {
 #' To change the model, edit MODEL_TEXT in config/model_config.R.
 #'
 #' Note: GPT-5 (reasoning model) does not support the temperature parameter.
+#' Uses reasoning_effort = "minimal" for faster responses on copyediting tasks.
 #' Retry settings are configured in config/model_config.R via MAX_RETRY_ATTEMPTS.
 #'
 #' @return A list with:
@@ -152,9 +153,13 @@ call_openai_api <- function(user_message,
       # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
       # GPT-5 is a reasoning model that doesn't support the temperature parameter
       # (only supports default value of 1)
+      # Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
-        model = MODEL_TEXT
+        model = MODEL_TEXT,
+        api_args = list(
+          reasoning_effort = "minimal"
+        )
       )
 
       # Send message and get response
@@ -217,6 +222,7 @@ call_openai_api <- function(user_message,
 #' To change the model, edit MODEL_IMAGES in config/model_config.R.
 #'
 #' Note: GPT-5 (reasoning model) does not support the temperature parameter.
+#' Uses reasoning_effort = "minimal" for faster responses on copyediting tasks.
 #' Max_completion_tokens and retry settings are configured in config/model_config.R via
 #' MAX_COMPLETION_TOKENS_IMAGES and MAX_RETRY_ATTEMPTS.
 #'
@@ -286,11 +292,13 @@ call_openai_api_images <- function(user_content) {
       # GPT-5 is a reasoning model that:
       # - Requires max_completion_tokens instead of max_tokens
       # - Does not support temperature parameter (only accepts default value of 1)
+      # - Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
         model = MODEL_IMAGES,
         api_args = list(
-          max_completion_tokens = MAX_COMPLETION_TOKENS_IMAGES
+          max_completion_tokens = MAX_COMPLETION_TOKENS_IMAGES,
+          reasoning_effort = "minimal"
         )
       )
 
