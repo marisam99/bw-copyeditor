@@ -229,6 +229,8 @@ call_openai_api <- function(user_message,
 #'
 #' @param user_content List. The ellmer-formatted content from build_prompt_images().
 #'   This should be a list of ellmer content objects (strings and content_image_file).
+#' @param system_prompt Character. The system prompt with copyediting instructions.
+#'   If NULL, loads from config/system_prompt.txt.
 #'
 #' @details
 #' This function uses the model specified in MODEL_IMAGES (from config/model_config.R).
@@ -275,7 +277,8 @@ call_openai_api <- function(user_message,
 #' }
 #'
 #' @export
-call_openai_api_images <- function(user_content) {
+call_openai_api_images <- function(user_content,
+                                   system_prompt = NULL) {
 
   # Load required package
   if (!requireNamespace("ellmer", quietly = TRUE)) {
@@ -287,8 +290,10 @@ call_openai_api_images <- function(user_content) {
     stop("OpenAI API key not found. Set OPENAI_API_KEY in your .Renviron file or use Sys.setenv(OPENAI_API_KEY = 'your-key').")
   }
 
-  # Load system prompt
-  system_prompt <- load_system_prompt()
+  # Load system prompt if not provided
+  if (is.null(system_prompt)) {
+    system_prompt <- load_system_prompt()
+  }
 
   # Validate inputs
   if (!is.list(user_content) || length(user_content) == 0) {
