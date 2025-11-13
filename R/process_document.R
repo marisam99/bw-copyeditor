@@ -1,9 +1,10 @@
 # ==============================================================================
-# Title:        Document Processor (Text Mode)
+# Title:        Document Processor
 # Last Updated: 2025-11-13
-# Description:  Main orchestrator function for text-mode copyediting pipeline.
-#               Parses PDF documents, builds prompts with automatic chunking,
-#               calls OpenAI API, and returns structured copyediting suggestions.
+# Description:  Main orchestrator function for the copyediting pipeline.
+#               Supports both text and image modes. Parses PDF documents,
+#               builds prompts with automatic chunking, calls OpenAI API,
+#               and returns structured copyediting suggestions.
 # ==============================================================================
 
 # Load configuration ----------------------------------------------------------
@@ -18,11 +19,12 @@ source(file.path("config", "model_config.R"))
 #' copyediting pipeline. Parses the document, builds prompts with automatic
 #' chunking if needed, sends to OpenAI API, and returns a structured data frame.
 #'
-#' @param file_path Character. Path to the document file (PDF only).
+#' @param mode Character. Processing mode: "text" (default) or "images".
+#'   Use "text" for text-heavy documents (reports, publications).
+#'   Use "images" for visual-heavy documents (slide decks, presentations).
 #' @param document_type Character. Type of document (e.g., "external field-facing",
 #'   "external client-facing", "internal").
 #' @param audience Character. Description of the target audience.
-#' @param context_window Integer. Maximum tokens per API call (default: CONTEXT_WINDOW_TEXT from config/model_config.R).
 #' @param process_pages Integer vector. Specific pages to process. If NULL,
 #'   processes all pages (default: NULL).
 #' @param verbose Logical. Print progress messages (default: TRUE).
@@ -41,39 +43,44 @@ source(file.path("config", "model_config.R"))
 #'
 #' @examples
 #' \dontrun{
-#'   # Process entire document (requires OPENAI_API_KEY environment variable)
+#'   # Text mode (default) - for reports/publications
 #'   results <- process_document(
-#'     file_path = "report.pdf",
+#'     mode = "text",
+#'     document_type = "external client-facing",
+#'     audience = "Healthcare executives"
+#'   )
+#'
+#'   # Image mode - for slide decks
+#'   results <- process_document(
+#'     mode = "images",
 #'     document_type = "external client-facing",
 #'     audience = "Healthcare executives"
 #'   )
 #'
 #'   # Process specific pages only
 #'   results <- process_document(
-#'     file_path = "report.pdf",
+#'     mode = "text",
 #'     document_type = "internal",
 #'     audience = "Data science team",
 #'     process_pages = c(1, 2, 5)
 #'   )
 #'
 #'   # Export to CSV
-#'   write.csv(results, "copyedit_suggestions.csv", row.names = FALSE)
+#'   export_results(results, "copyedit_results.csv")
 #' }
 #'
 #' @export
-process_document <- function(file_path,
+process_document <- function(mode = c("text", "images"),
                              document_type,
                              audience,
-                             context_window = CONTEXT_WINDOW_TEXT,
                              process_pages = NULL,
                              verbose = TRUE,
                              delay_between_chunks = 1) {
 
-  # Validate inputs
-  if (!file.exists(file_path)) {
-    stop(sprintf("File not found: %s", file_path))
-  }
+  # Match and validate mode argument
+  mode <- match.arg(mode)
 
+  # Validate inputs
   if (missing(document_type) || is.null(document_type) || nchar(trimws(document_type)) == 0) {
     stop("document_type is required")
   }
@@ -82,16 +89,19 @@ process_document <- function(file_path,
     stop("audience is required")
   }
 
+  # Select context window based on mode
+  context_window <- if (mode == "text") CONTEXT_WINDOW_TEXT else CONTEXT_WINDOW_IMAGES
+
   if (verbose) {
     cat(sprintf("\n=== Bellwether Copyeditor ===\n"))
-    cat(sprintf("Processing: %s\n", basename(file_path)))
+    cat(sprintf("Mode: %s\n", mode))
     cat(sprintf("Document type: %s\n", document_type))
     cat(sprintf("Audience: %s\n", audience))
   }
 
-  # Parse document
+  # Parse document (file picker opens in parse_document)
   if (verbose) cat("\nParsing document...\n")
-  parsed_doc <- parse_document(file_path, mode = "text")
+  parsed_doc <- parse_document(mode = mode)
 
   total_pages <- nrow(parsed_doc)
   if (verbose) {
@@ -118,17 +128,25 @@ process_document <- function(file_path,
     }
   }
 
-  # Load system prompt
+  # Load system prompt (used by both text and image modes)
   if (verbose) cat("Loading system prompt from config/system_prompt.txt\n")
   system_prompt <- load_system_prompt()
 
   # Build user messages (with automatic chunking if needed)
   if (verbose) cat("Building user messages...\n")
-  user_message_chunks <- build_prompt_text(
-    parsed_document = parsed_doc,
-    deliverable_type = document_type,
-    audience = audience
-  )
+  if (mode == "text") {
+    user_message_chunks <- build_prompt_text(
+      parsed_document = parsed_doc,
+      deliverable_type = document_type,
+      audience = audience
+    )
+  } else {
+    user_message_chunks <- build_prompt_images(
+      parsed_document = parsed_doc,
+      deliverable_type = document_type,
+      audience = audience
+    )
+  }
 
   num_chunks <- nrow(user_message_chunks)
   if (verbose && num_chunks > 1) {
@@ -149,12 +167,19 @@ process_document <- function(file_path,
                   chunk$page_start, chunk$page_end))
     }
 
-    # Call API
+    # Call API based on mode
     tryCatch({
-      result <- call_openai_api(
-        user_message = chunk$user_message,
-        system_prompt = system_prompt
-      )
+      if (mode == "text") {
+        result <- call_openai_api(
+          user_message = chunk$user_message,
+          system_prompt = system_prompt
+        )
+      } else {
+        result <- call_openai_api_images(
+          user_content = chunk$user_message,
+          system_prompt = system_prompt
+        )
+      }
 
       # Store suggestions
       if (!is.null(result$suggestions) && length(result$suggestions) > 0) {
@@ -197,12 +222,12 @@ process_document <- function(file_path,
   results_df <- format_results(all_suggestions)
 
   # Add metadata as attributes
-  attr(results_df, "document_path") <- file_path
+  attr(results_df, "mode") <- mode
   attr(results_df, "document_type") <- document_type
   attr(results_df, "audience") <- audience
   attr(results_df, "pages_processed") <- if (!is.null(process_pages)) process_pages else seq_len(total_pages)
   attr(results_df, "num_chunks") <- num_chunks
-  attr(results_df, "model") <- MODEL_TEXT  # Model used for text-mode copyediting (from config/model_config.R)
+  attr(results_df, "model") <- if (mode == "text") MODEL_TEXT else MODEL_IMAGES
   attr(results_df, "api_metadata") <- api_metadata
   attr(results_df, "processed_at") <- Sys.time()
 

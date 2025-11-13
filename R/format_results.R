@@ -242,15 +242,16 @@ export_results <- function(results_df, output_path, include_metadata = TRUE) {
   cat(sprintf("Results exported to: %s\n", output_path))
 
   # Export metadata if requested
-  if (include_metadata && !is.null(attr(results_df, "document_path"))) {
+  if (include_metadata && !is.null(attr(results_df, "mode"))) {
 
     # Create metadata data frame
+    doc_mode <- attr(results_df, "mode")
     doc_type <- attr(results_df, "document_type")
     aud <- attr(results_df, "audience")
     chunks <- attr(results_df, "num_chunks")
 
     metadata <- data.frame(
-      document_path = attr(results_df, "document_path"),
+      mode = if (is.null(doc_mode)) NA else doc_mode,
       document_type = if (is.null(doc_type)) NA else doc_type,
       audience = if (is.null(aud)) NA else aud,
       pages_processed = paste(attr(results_df, "pages_processed"), collapse = ", "),
