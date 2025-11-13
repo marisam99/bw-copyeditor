@@ -69,8 +69,16 @@ combine_pages <- function(parsed_document) {
 #' @return Integer. Exact token count.
 #' @keywords internal
 estimate_tokens <- function(text, model = "gpt-4") {
+  # Handle newer models not yet supported by rtiktoken
+  # GPT-5 uses the same tokenizer as GPT-4o, so fall back to that
+  tokenizer_model <- model
+  if (grepl("^gpt-5", model, ignore.case = TRUE)) {
+    tokenizer_model <- "gpt-4o"
+    message(sprintf("Using gpt-4o tokenizer for %s (rtiktoken doesn't support %s yet)", model, model))
+  }
+
   # Count tokens using rtiktoken
-  token_count <- rtiktoken::get_token_count(text, model = model)
+  token_count <- rtiktoken::get_token_count(text, model = tokenizer_model)
   return(token_count)
 }
 
