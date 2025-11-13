@@ -22,7 +22,7 @@ MAX_RETRY_ATTEMPTS <- 3
 
 #' Model for text-only copyediting
 #' High quality and efficient for text processing
-MODEL_TEXT <- "gpt-5"
+MODEL_TEXT <- "gpt-5-2025-08-07"
 
 #' Maximum tokens per API request for text mode
 #' gpt-5 supports large context windows, we use 400k as conservative estimate
@@ -34,7 +34,7 @@ CONTEXT_WINDOW_TEXT <- 400000
 
 #' Model for image-based copyediting
 #' Must support vision capabilities for reading text in images
-MODEL_IMAGES <- "gpt-5"
+MODEL_IMAGES <- "gpt-5-2025-08-07"
 
 #' Maximum tokens per API request for image mode
 #' Lower than text mode due to image token overhead (180k for gpt-5)
