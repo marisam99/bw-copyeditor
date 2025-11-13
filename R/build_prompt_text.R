@@ -5,6 +5,7 @@
 #               Combines document content with project context (deliverable type, audience).
 #               Handles automatic chunking for large documents that would exceed token limits.
 #               Uses rtiktoken for accurate token counting matching OpenAI's tokenizers.
+# Output:       A tibble with fields: chunk_id | page_start | page_end | user_message
 # ==============================================================================
 
 # Load configuration ----------------------------------------------------------

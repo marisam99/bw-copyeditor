@@ -150,28 +150,37 @@ call_openai_api <- function(user_message,
 
   while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
+      message(sprintf("Sending text to GPT-5 through OpenAI's API: attempt %d", attempt))
+
       # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
       # GPT-5 is a reasoning model that doesn't support the temperature parameter
       # (only supports default value of 1)
-      # Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
+      # Use reasoning_effort: low for faster responses on straightforward tasks like copyediting
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
         model = MODEL_TEXT,
         api_args = list(
-          reasoning_effort = "minimal"
-        )
+          reasoning_effort = REASONING_LEVEL
+        ),
+        echo = "none"
       )
 
       # Send message and get response
+      start_time <- Sys.time()
       response <- chat$chat(user_message)
+      elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 1)
+
+      message(sprintf("Response received in %.1f seconds", elapsed))
+      message("Parsing response...")
 
       # Parse the JSON response
       result <- parse_json_response(response, MODEL_TEXT, chat)
 
+      message("Response parsed successfully!")
       return(result)
 
     }, error = function(e) {
-      last_error <- e
+      last_error <<- e
 
       # Extract detailed error information
       error_msg <- conditionMessage(e)
@@ -181,12 +190,16 @@ call_openai_api <- function(user_message,
         error_msg <- paste(error_msg, "\nDetails:", conditionMessage(e$parent))
       }
 
-      if (grepl("rate limit|429", error_msg, ignore.case = TRUE)) {
+      # Determine if error is retryable
+      is_rate_limit <- grepl("rate limit|429", error_msg, ignore.case = TRUE)
+      is_server_error <- grepl("500|502|503|504|timeout|timed out|connection", error_msg, ignore.case = TRUE)
+
+      if (is_rate_limit) {
         message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
-      } else if (grepl("500|502|503|504", error_msg, ignore.case = TRUE)) {
-        message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
+      } else if (is_server_error) {
+        message(sprintf("Server/timeout error (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
@@ -288,6 +301,8 @@ call_openai_api_images <- function(user_content) {
 
   while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
+      message(sprintf("Sending images to GPT-5 through OpenAI's API: attempt %d", attempt))
+
       # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
       # GPT-5 is a reasoning model that:
       # - Requires max_completion_tokens instead of max_tokens
@@ -298,21 +313,27 @@ call_openai_api_images <- function(user_content) {
         model = MODEL_IMAGES,
         api_args = list(
           max_completion_tokens = MAX_COMPLETION_TOKENS_IMAGES,
-          reasoning_effort = "minimal"
+          reasoning_effort = REASONING_LEVEL
         )
       )
 
       # Send multimodal message and get response
       # user_content is already in ellmer format (strings + content_image_file objects)
+      start_time <- Sys.time()
       response <- do.call(chat$chat, user_content)
+      elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 1)
+
+      message(sprintf("Response received in %.1f seconds", elapsed))
+      message("Parsing response...")
 
       # Parse the JSON response
       result <- parse_json_response(response, MODEL_IMAGES, chat)
 
+      message("Response parsed successfully!")
       return(result)
 
     }, error = function(e) {
-      last_error <- e
+      last_error <<- e
 
       # Extract detailed error information
       error_msg <- conditionMessage(e)
@@ -322,12 +343,16 @@ call_openai_api_images <- function(user_content) {
         error_msg <- paste(error_msg, "\nDetails:", conditionMessage(e$parent))
       }
 
-      if (grepl("rate limit|429", error_msg, ignore.case = TRUE)) {
+      # Determine if error is retryable
+      is_rate_limit <- grepl("rate limit|429", error_msg, ignore.case = TRUE)
+      is_server_error <- grepl("500|502|503|504|timeout|timed out|connection", error_msg, ignore.case = TRUE)
+
+      if (is_rate_limit) {
         message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
-      } else if (grepl("500|502|503|504", error_msg, ignore.case = TRUE)) {
-        message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
+      } else if (is_server_error) {
+        message(sprintf("Server/timeout error (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
