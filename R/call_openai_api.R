@@ -96,8 +96,8 @@ parse_json_response <- function(response, model, chat) {
 #' This function uses the model specified in MODEL_TEXT (from config/model_config.R).
 #' To change the model, edit MODEL_TEXT in config/model_config.R.
 #'
-#' Temperature and retry settings are configured in config/model_config.R via
-#' DEFAULT_TEMPERATURE and MAX_RETRY_ATTEMPTS.
+#' Note: GPT-5 (reasoning model) does not support the temperature parameter.
+#' Retry settings are configured in config/model_config.R via MAX_RETRY_ATTEMPTS.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -150,12 +150,11 @@ call_openai_api <- function(user_message,
   while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
       # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
+      # GPT-5 is a reasoning model that doesn't support the temperature parameter
+      # (only supports default value of 1)
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
-        model = MODEL_TEXT,
-        api_args = list(
-          temperature = DEFAULT_TEMPERATURE
-        )
+        model = MODEL_TEXT
       )
 
       # Send message and get response
@@ -168,17 +167,31 @@ call_openai_api <- function(user_message,
 
     }, error = function(e) {
       last_error <- e
-      if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
+
+      # Extract detailed error information
+      error_msg <- conditionMessage(e)
+
+      # Try to extract the full error details from the httr response if available
+      if (!is.null(e$parent) && inherits(e$parent, "error")) {
+        error_msg <- paste(error_msg, "\nDetails:", conditionMessage(e$parent))
+      }
+
+      if (grepl("rate limit|429", error_msg, ignore.case = TRUE)) {
         message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
-      } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
+      } else if (grepl("500|502|503|504", error_msg, ignore.case = TRUE)) {
         message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
-        # Don't retry on client errors
-        stop(sprintf("API request failed: %s", e$message))
+        # Don't retry on client errors - show full error details
+        cat("\n=== Full API Error Details ===\n")
+        cat("Error message:", error_msg, "\n")
+        cat("Error class:", class(e), "\n")
+        if (!is.null(e$call)) cat("Error call:", deparse(e$call), "\n")
+        cat("==============================\n\n")
+        stop(sprintf("API request failed: %s", error_msg))
       }
     })
 
@@ -203,8 +216,9 @@ call_openai_api <- function(user_message,
 #' This function uses the model specified in MODEL_IMAGES (from config/model_config.R).
 #' To change the model, edit MODEL_IMAGES in config/model_config.R.
 #'
-#' Temperature, max_tokens, and retry settings are configured in config/model_config.R via
-#' DEFAULT_TEMPERATURE, MAX_TOKENS_IMAGES, and MAX_RETRY_ATTEMPTS.
+#' Note: GPT-5 (reasoning model) does not support the temperature parameter.
+#' Max_completion_tokens and retry settings are configured in config/model_config.R via
+#' MAX_COMPLETION_TOKENS_IMAGES and MAX_RETRY_ATTEMPTS.
 #'
 #' @return A list with:
 #'   \item{suggestions}{Parsed JSON array of copyediting suggestions}
@@ -269,12 +283,14 @@ call_openai_api_images <- function(user_content) {
   while (attempt <= MAX_RETRY_ATTEMPTS) {
     tryCatch({
       # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
+      # GPT-5 is a reasoning model that:
+      # - Requires max_completion_tokens instead of max_tokens
+      # - Does not support temperature parameter (only accepts default value of 1)
       chat <- ellmer::chat_openai(
         system_prompt = system_prompt,
         model = MODEL_IMAGES,
         api_args = list(
-          temperature = DEFAULT_TEMPERATURE,
-          max_tokens = MAX_TOKENS_IMAGES
+          max_completion_tokens = MAX_COMPLETION_TOKENS_IMAGES
         )
       )
 
@@ -289,17 +305,31 @@ call_openai_api_images <- function(user_content) {
 
     }, error = function(e) {
       last_error <- e
-      if (grepl("rate limit|429", e$message, ignore.case = TRUE)) {
+
+      # Extract detailed error information
+      error_msg <- conditionMessage(e)
+
+      # Try to extract the full error details from the httr response if available
+      if (!is.null(e$parent) && inherits(e$parent, "error")) {
+        error_msg <- paste(error_msg, "\nDetails:", conditionMessage(e$parent))
+      }
+
+      if (grepl("rate limit|429", error_msg, ignore.case = TRUE)) {
         message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
-      } else if (grepl("500|502|503|504", e$message, ignore.case = TRUE)) {
+      } else if (grepl("500|502|503|504", error_msg, ignore.case = TRUE)) {
         message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
                        attempt, MAX_RETRY_ATTEMPTS, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
-        # Don't retry on client errors
-        stop(sprintf("API request failed: %s", e$message))
+        # Don't retry on client errors - show full error details
+        cat("\n=== Full API Error Details ===\n")
+        cat("Error message:", error_msg, "\n")
+        cat("Error class:", class(e), "\n")
+        if (!is.null(e$call)) cat("Error call:", deparse(e$call), "\n")
+        cat("==============================\n\n")
+        stop(sprintf("API request failed: %s", error_msg))
       }
     })
 

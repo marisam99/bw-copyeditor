@@ -10,6 +10,8 @@
 #' Default sampling temperature for API calls
 #' Lower values (closer to 0) make output more focused and deterministic.
 #' Range: 0.0 to 2.0
+#' NOTE: GPT-5 (reasoning model) does not support temperature parameter
+#' This setting is retained for backward compatibility but not currently used
 DEFAULT_TEMPERATURE <- 0.3
 
 #' Maximum number of retry attempts for failed API requests
@@ -21,11 +23,12 @@ MAX_RETRY_ATTEMPTS <- 3
 # Settings for text-only copyediting (publications, reports, text-heavy documents)
 
 #' Model for text-only copyediting
-#' High quality and efficient for text processing
+#' GPT-5 is a reasoning model with excellent performance
+#' Released August 2025
 MODEL_TEXT <- "gpt-5"
 
 #' Maximum tokens per API request for text mode
-#' gpt-5 supports large context windows, we use 400k as conservative estimate
+#' GPT-5 supports large context windows
 CONTEXT_WINDOW_TEXT <- 400000
 
 
@@ -34,15 +37,17 @@ CONTEXT_WINDOW_TEXT <- 400000
 
 #' Model for image-based copyediting
 #' Must support vision capabilities for reading text in images
+#' GPT-5 has multimodal capabilities and is a reasoning model
 MODEL_IMAGES <- "gpt-5"
 
 #' Maximum tokens per API request for image mode
-#' Lower than text mode due to image token overhead (180k for gpt-5)
+#' Lower than text mode due to image token overhead
 CONTEXT_WINDOW_IMAGES <- 180000
 
-#' Maximum tokens in response for image mode
+#' Maximum completion tokens in response for image mode
+#' GPT-5 reasoning models require max_completion_tokens instead of max_tokens
 #' Higher than default due to potentially more issues to report from visual content
-MAX_TOKENS_IMAGES <- 16000
+MAX_COMPLETION_TOKENS_IMAGES <- 16000
 
 #' Image detail level for vision API
 #' Options: "high" or "low" (high recommended for copyediting to catch all text)
