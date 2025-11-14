@@ -2,8 +2,55 @@
 # Package Dependencies for BW Copyeditor
 # ==============================================================================
 # This file loads all required packages for the copyediting tool.
-# Install any missing packages before running:
-#   install.packages(c("pdftools", "tibble", "dplyr", "purrr", "glue", "ellmer", "jsonlite", "rtiktoken", "tools"))
+# Missing packages will be automatically detected and can be installed when prompted.
+
+# Check and Install Missing Packages ------------------------------------------
+
+#' Check Dependencies and Install if Missing
+#'
+#' Checks if all required packages are installed. If any are missing,
+#' prompts the user to install them automatically.
+#'
+#' @param auto_install If TRUE, installs without prompting. Default FALSE.
+#' @keywords internal
+check_dependencies <- function(auto_install = FALSE) {
+  required_packages <- c(
+    "pdftools", "tibble", "dplyr", "purrr",
+    "glue", "ellmer", "jsonlite", "rtiktoken"
+  )
+
+  # Check which packages are missing
+  missing <- required_packages[!sapply(required_packages, requireNamespace, quietly = TRUE)]
+
+  if (length(missing) > 0) {
+    message("\n⚠️  Missing required packages: ", paste(missing, collapse = ", "))
+
+    if (auto_install) {
+      message("Installing missing packages...")
+      install.packages(missing)
+      message("✅ Installation complete!\n")
+    } else {
+      # Interactive prompt
+      response <- readline(prompt = "Install missing packages now? (y/n): ")
+      if (tolower(trimws(response)) == "y") {
+        message("\nInstalling packages...")
+        install.packages(missing)
+        message("✅ Installation complete!\n")
+      } else {
+        stop(
+          "Required packages not installed.\n",
+          "Install manually with: install.packages(c('",
+          paste(missing, collapse = "', '"), "'))"
+        )
+      }
+    }
+  }
+}
+
+# Run dependency check
+check_dependencies()
+
+# Load Packages ---------------------------------------------------------------
 
 # PDF Processing
 library(pdftools)      # Extract text and convert PDFs to images

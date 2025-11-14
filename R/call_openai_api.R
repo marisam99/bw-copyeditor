@@ -82,10 +82,6 @@ with_retry <- function(fn, max_attempts = MAX_RETRY_ATTEMPTS) {
 #' @keywords internal
 parse_json_response <- function(response, model, chat) {
 
-  if (!requireNamespace("jsonlite", quietly = TRUE)) {
-    stop("Package 'jsonlite' is required. Install with: install.packages('jsonlite'). For more information, see the README.md.")
-  }
-
   # Parse the JSON suggestions from response
   suggestions <- tryCatch({
     # Response should be a JSON string
