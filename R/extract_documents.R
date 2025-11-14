@@ -38,7 +38,7 @@ extract_to_images <- function(file_path) {
       format = "png",
       dpi = 150,
       filenames = file.path(tempdir(), "page_%d.png"),
-      verbose = TRUE
+      verbose = FALSE
     )
   )
 
