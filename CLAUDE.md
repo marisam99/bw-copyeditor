@@ -78,6 +78,32 @@ The tool supports two parsing modes for PDF documents:
     2. Helper functions (marked with `@keywords internal`)
     3. Main exported functions (marked with `@export`)
 
+### Dependency Management
+
+-   **Centralized dependencies:** All `library()` calls are in `config/dependencies.R`
+-   **Automatic checking:** Dependencies are automatically checked on startup with user-friendly prompts
+-   **No package:: notation:** Use plain function names (e.g., `tibble()` not `tibble::tibble()`)
+-   **Single source of truth:** `config/dependencies.R` is the only place to manage package dependencies
+-   All required packages:
+    -   `pdftools` - PDF extraction
+    -   `tibble`, `dplyr`, `purrr` - Data manipulation
+    -   `glue` - String formatting
+    -   `ellmer` - LLM API calls
+    -   `jsonlite` - JSON parsing
+    -   `rtiktoken` - Token counting
+    -   `tools` - File utilities
+
+### User-Facing Messaging
+
+-   **Selective emoji usage:** Only use emojis for specific categories:
+    -   ⏳ Progress indicators ("Extracting...", "Sending...", "Retrying...")
+    -   ✅ Success confirmations ("Processing complete!", "Response received", "Exported to...")
+    -   ⚠️ Warnings (failed chunks, missing fields, errors)
+    -   🎉 Celebration ("No issues found!")
+-   **No emojis for:** Headers, info messages (Mode, Document type), token counts, cost estimates, chunk details
+-   **Logical spacing:** Use blank lines to separate logical sections of output
+-   **User-friendly:** Write for non-technical colleagues - clear, concise, no jargon
+
 ------------------------------------------------------------------------
 
 ## Design Principles
