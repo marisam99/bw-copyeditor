@@ -1,9 +1,13 @@
 # ==============================================================================
 # Title:        User Tests Round 1
-# Description:  Code I've been using repeatedly to test the different scripts
+# Description:  Code that testing users can use to run tests on the samples
 # ==============================================================================
 
+# Load everything first! --------------------------------------------------------
 source("R/bw_copyeditor.R")
+
+# Run the tests you'd like ------------------------------------------------------
+#  Note: All pdfs can be found in the tests > test samples directory.
 
 # Test No. 1: Text-Mode, shorter document (6 pages)
 # EdLight Case Study:
