@@ -200,7 +200,7 @@ build_prompt_text <- function(extracted_document,
 
   # Check if we need to chunk
   if (total_tokens <= safety_limit) {
-    message("Document fits in single chunk - no splitting needed")
+    message("Document fits in single chunk - no splitting needed\n")
     # Fits in single message
     user_message <- paste0(header, "\n\nFile:\n\n", all_pages)
     result <- tibble::tibble(
@@ -221,14 +221,14 @@ build_prompt_text <- function(extracted_document,
       audience = audience
     )
 
-    message(glue::glue("Document split into {nrow(result)} chunk(s)"))
+    message(glue::glue("Document split into {nrow(result)} chunk(s)\n"))
   }
 
   # Estimate total cost (rough)
   estimated_cost <- (total_tokens / 1000000) * COST_PER_1M
 
   message(glue::glue(
-    "\nEstimated minimum cost: ${format(estimated_cost, digits = 2)} ",
+    "Estimated minimum cost: ${format(estimated_cost, digits = 2)} ",
     "(based on ~{format(total_tokens, big.mark = ',')} input tokens for {MODEL_TEXT})"
   ))
   message("Note: Final cost will depend on response length.\n")

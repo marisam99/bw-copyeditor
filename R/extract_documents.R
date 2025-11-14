@@ -96,7 +96,7 @@ extract_document <- function(mode = c("text", "images")) {
   }
 
   # Start extraction
-  message("Extracting document content...\n")
+  message("⏳ Extracting document content...\n")
 
   # Extract content based on mode
   result <- if (mode == "text") {

@@ -65,12 +65,12 @@ copyedit_document <- function(mode = c("text", "images"),
   }
 
   message(sprintf("\n=== Bellwether Copyeditor ===\n"))
-  message(sprintf("Mode: %s\n", mode))
-  message(sprintf("Document type: %s\n", document_type))
+  message(sprintf("Mode: %s", mode))
+  message(sprintf("Document type: %s", document_type))
   message(sprintf("Audience: %s\n", audience))
 
   # Extract document (file picker opens in extract_document)
-  message("\nWaiting for file upload...\n")
+  message("⏳ Waiting for file upload...\n")
   extracted_doc <- extract_document(mode = mode)
 
   # Extract file path from extracted document
@@ -80,7 +80,7 @@ copyedit_document <- function(mode = c("text", "images"),
   message(sprintf("\nDocument extracted: %d pages\n", total_pages))
 
   # Build user messages (with automatic chunking if needed)
-  message(sprintf("\nPreparing %d pages to send to API\n", total_pages))
+  message(sprintf("⏳ Preparing %d pages to send to API\n", total_pages))
   if (mode == "text") {
     user_message_chunks <- build_prompt_text(
       extracted_document = extracted_doc,
@@ -106,11 +106,11 @@ copyedit_document <- function(mode = c("text", "images"),
 
     # Show different messages for single vs multi-chunk
     if (num_chunks > 1) {
-      message(sprintf("\n[Chunk %d/%d] Sending pages %d-%d...",
+      message(sprintf("\n⏳ [Chunk %d/%d] Sending pages %d-%d...",
                   i, num_chunks,
                   chunk$page_start, chunk$page_end))
     } else {
-      message(sprintf("\nSending pages %d-%d...",
+      message(sprintf("\n⏳ Sending pages %d-%d...",
                   chunk$page_start, chunk$page_end))
     }
 
@@ -144,12 +144,12 @@ copyedit_document <- function(mode = c("text", "images"),
       )
 
     }, error = function(e) {
-      warning(sprintf("Failed to process chunk %d (pages %d-%d): %s",
+      warning(sprintf("⚠️ Failed to process chunk %d (pages %d-%d): %s",
                      i, chunk$page_start, chunk$page_end, e$message))
     })
   }
 
-  message(sprintf("\n\nProcessing complete!\n"))
+  message(sprintf("\n✅ Processing complete!\n"))
 
   # Convert to data frame
   results_df <- format_results(all_suggestions)

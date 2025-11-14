@@ -94,7 +94,7 @@ validate_results <- function(results_df) {
   # Warn user if any invalid rows found
   n_invalid <- sum(!results_df$is_valid)
   if (n_invalid > 0) {
-    warning(sprintf("Found %d rows with missing critical fields (page_number or original_text). These rows are flagged with is_valid = FALSE.", n_invalid))
+    warning(sprintf("⚠️ Found %d rows with missing critical fields (page_number or original_text). These rows are flagged with is_valid = FALSE.", n_invalid))
   }
 
   return(results_df)
@@ -165,7 +165,7 @@ format_results <- function(suggestions_list) {
 print_summary <- function(results_df) {
 
   if (nrow(results_df) == 0) {
-    cat("\nNo issues found! Document looks good.\n")
+    cat("\n🎉 No issues found! Document looks good.\n")
     return(invisible(NULL))
   }
 
@@ -215,12 +215,12 @@ export_results <- function(results_df, output_filename = "copyedit_results.csv",
   } else {
     # Fallback to current directory if file_path not available
     output_path <- output_filename
-    warning("Source file path not found in metadata. Saving to current directory.")
+    warning("⚠️ Source file path not found in metadata. Saving to current directory.")
   }
 
   # Export main results
   write.csv(results_df, output_path, row.names = FALSE)
-  cat(sprintf("Results exported to: %s\n", output_path))
+  cat(sprintf("✅ Results exported to: %s\n", output_path))
 
   # Export metadata if requested
   if (include_metadata && !is.null(attr(results_df, "mode"))) {
@@ -246,7 +246,7 @@ export_results <- function(results_df, output_filename = "copyedit_results.csv",
     # Write metadata
     metadata_path <- sub("\\.csv$", "_metadata.csv", output_path)
     write.csv(metadata, metadata_path, row.names = FALSE)
-    cat(sprintf("Metadata exported to: %s\n", metadata_path))
+    cat(sprintf("✅ Metadata exported to: %s\n", metadata_path))
   }
 
   return(invisible(NULL))

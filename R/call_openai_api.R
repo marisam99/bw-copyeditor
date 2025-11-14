@@ -44,11 +44,11 @@ with_retry <- function(fn, max_attempts = MAX_RETRY_ATTEMPTS) {
       }
 
       if (grepl("rate limit|429", error_msg, ignore.case = TRUE)) {
-        message(sprintf("Rate limit hit (attempt %d/%d). Retrying in %d seconds...",
+        message(sprintf("⏳ Rate limit hit (attempt %d/%d) - retrying in %d seconds...",
                        attempt, max_attempts, attempt * 2))
         Sys.sleep(attempt * 2)  # Exponential backoff
       } else if (grepl("500|502|503|504", error_msg, ignore.case = TRUE)) {
-        message(sprintf("Server error (attempt %d/%d). Retrying in %d seconds...",
+        message(sprintf("⏳ Server error (attempt %d/%d) - retrying in %d seconds...",
                        attempt, max_attempts, attempt * 2))
         Sys.sleep(attempt * 2)
       } else {
@@ -99,7 +99,7 @@ parse_json_response <- function(response, model, chat) {
       parsed
     }
   }, error = function(e) {
-    warning(sprintf("Failed to parse API response as JSON: %s\nRaw content: %s",
+    warning(sprintf("⚠️ Failed to parse API response as JSON: %s\nRaw content: %s",
                    e$message, substr(response, 1, 500)))
     list()  # Return empty list if parsing fails
   })
@@ -189,7 +189,7 @@ call_openai_api_text <- function(user_message) {
     response <- chat$chat(user_message)
     elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 1)
 
-    message(sprintf("Response received in %.1f seconds", elapsed))
+    message(sprintf("✅ Response received in %.1f seconds", elapsed))
 
     # Parse the JSON response
     parse_json_response(response, MODEL_TEXT, chat)
@@ -251,7 +251,7 @@ call_openai_api_images <- function(user_content) {
     response <- do.call(chat$chat, user_content)
     elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 1)
 
-    message(sprintf("Response received in %.1f seconds", elapsed))
+    message(sprintf("✅ Response received in %.1f seconds", elapsed))
 
     # Parse the JSON response
     parse_json_response(response, MODEL_IMAGES, chat)

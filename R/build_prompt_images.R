@@ -73,7 +73,8 @@ check_for_chunk <- function(extracted_document, document_type, audience) {
   safety_limit <- floor(CONTEXT_WINDOW_IMAGES * 0.9) # Leave room for system prompt + response
   images_per_chunk <- floor(safety_limit / per_image_tokens) # Calculates safe no. of images per API call
   if (total_images <= images_per_chunk && estimated_ttl_input_tokens <= safety_limit) {
-    message("Document fits in single chunk - no splitting needed")
+    # Suppress message - this is reported by the calling function
+    # message("Document fits in single chunk - no splitting needed")
     chunk_decision <- "no"
   } else {
     chunk_decision <- "yes"
@@ -109,7 +110,7 @@ chunk_by_images <- function(extracted_document, document_type, audience, chunk_i
   num_chunks <- ceiling(chunk_info$total_images / chunk_info$images_per_chunk) # using info passed from check_for_chunk
   message(glue::glue(
     "Splitting {chunk_info$total_images} pages into {num_chunks} chunk(s) ",
-    "({chunk_info$images_per_chunk} images per chunk)"
+    "({chunk_info$images_per_chunk} images per chunk)\n"
   ))
 
   # Split into chunks
@@ -208,11 +209,11 @@ build_prompt_images <- function(extracted_document, document_type, audience) {
   chunk_info <- check_for_chunk(extracted_document, document_type, audience)
 
   if(chunk_info$chunk_decision == "no" ){
-    
+
     # Tell user
     message(glue::glue(
       "Processing {chunk_info$total_images} page(s) as images ",
-      "(~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} tokens)"
+      "(~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} tokens)\n"
     ))
 
     # Build single chunk
@@ -242,7 +243,7 @@ build_prompt_images <- function(extracted_document, document_type, audience) {
   estimated_cost <- (chunk_info$estimated_ttl_input_tokens / 1000000) * COST_PER_1M
 
   message(glue::glue(
-    "\nEstimated cost: ${format(estimated_cost, digits = 2)} ",
+    "Estimated cost: ${format(estimated_cost, digits = 2)} ",
     "(based on ~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} input tokens for {MODEL_IMAGES})"
   ))
   message("Note: This is the minimum estimate. The final cost will depend on the response length, and output tokens are more expensive.\n")
