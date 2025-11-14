@@ -69,10 +69,15 @@ estimate_tokens <- function(text) {
   # For newer models not yet supported by rtiktoken, such as GPT-5, fall back to 4o
   if (grepl("^gpt-5", tokenizer_model, ignore.case = TRUE)) {
     tokenizer_model <- "gpt-4o"
-    message(sprintf("Using gpt-4o tokenizer for %s (rtiktoken doesn't support it yet)", MODEL_TEXT))
+
+    # Only show message once (when model_config.R is first sourced)
+    if (!exists(".tokenizer_msg_shown", envir = .GlobalEnv)) {
+      message(sprintf("Using gpt-4o tokenizer for %s (rtiktoken doesn't support it yet)", MODEL_TEXT))
+      assign(".tokenizer_msg_shown", TRUE, envir = .GlobalEnv)
+    }
   }
 
   # Count tokens using rtiktoken
-  token_count <- rtiktoken::get_token_count(text, model = tokenizer_model)
+  token_count <- get_token_count(text, model = tokenizer_model)
   return(token_count)
 }

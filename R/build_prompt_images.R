@@ -33,11 +33,11 @@ build_multimodal_message <- function(extracted_document, document_type, audience
     image_path <- extracted_document$image_path[i]
 
     # Add page label (plain string)
-    content[[length(content) + 1]] <- glue::glue("\nPage {page_num}:")
+    content[[length(content) + 1]] <- glue("\nPage {page_num}:")
 
     # Add image using ellmer's helper function
-    # ellmer::content_image_file() handles encoding automatically
-    content[[length(content) + 1]] <- ellmer::content_image_file(
+    # content_image_file() handles encoding automatically
+    content[[length(content) + 1]] <- content_image_file(
       path = image_path,
       resize = DETAIL_SETTING
     )
@@ -73,7 +73,8 @@ check_for_chunk <- function(extracted_document, document_type, audience) {
   safety_limit <- floor(CONTEXT_WINDOW_IMAGES * 0.9) # Leave room for system prompt + response
   images_per_chunk <- floor(safety_limit / per_image_tokens) # Calculates safe no. of images per API call
   if (total_images <= images_per_chunk && estimated_ttl_input_tokens <= safety_limit) {
-    message("Document fits in single chunk - no splitting needed")
+    # Suppress message - this is reported by the calling function
+    # message("Document fits in single chunk - no splitting needed")
     chunk_decision <- "no"
   } else {
     chunk_decision <- "yes"
@@ -107,9 +108,9 @@ chunk_by_images <- function(extracted_document, document_type, audience, chunk_i
 
   # Calculate number of chunks needed
   num_chunks <- ceiling(chunk_info$total_images / chunk_info$images_per_chunk) # using info passed from check_for_chunk
-  message(glue::glue(
+  message(glue(
     "Splitting {chunk_info$total_images} pages into {num_chunks} chunk(s) ",
-    "({chunk_info$images_per_chunk} images per chunk)"
+    "({chunk_info$images_per_chunk} images per chunk)\n"
   ))
 
   # Split into chunks
@@ -120,7 +121,7 @@ chunk_by_images <- function(extracted_document, document_type, audience, chunk_i
 
     # Extract pages for this chunk
     chunk_pages <- extracted_document |>
-      dplyr::filter(page_number >= page_start, page_number <= page_end)
+      filter(page_number >= page_start, page_number <= page_end)
 
     # Build multimodal content
     user_message <- build_multimodal_message(
@@ -133,7 +134,7 @@ chunk_by_images <- function(extracted_document, document_type, audience, chunk_i
     chunk_image_tokens <- nrow(chunk_pages) * chunk_info$per_image_tokens # count image tokens in the chunk
     total_chunk_tokens <- SYSTEM_PROMPT_TOKENS + chunk_info$header_tokens + chunk_image_tokens # total estimate of tokens for the chunk
 
-    message(glue::glue(
+    message(glue(
       "  Chunk {chunk_id}: pages {page_start}-{page_end} ",
       "(~{format(total_chunk_tokens, big.mark = ',')} tokens)"
     ))
@@ -150,7 +151,7 @@ chunk_by_images <- function(extracted_document, document_type, audience, chunk_i
   }
 
   # Convert to tibble
-  result <- tibble::tibble(
+  result <- tibble(
     chunk_id = sapply(chunks, `[[`, "chunk_id"),
     page_start = sapply(chunks, `[[`, "page_start"),
     page_end = sapply(chunks, `[[`, "page_end"),
@@ -208,11 +209,11 @@ build_prompt_images <- function(extracted_document, document_type, audience) {
   chunk_info <- check_for_chunk(extracted_document, document_type, audience)
 
   if(chunk_info$chunk_decision == "no" ){
-    
+
     # Tell user
-    message(glue::glue(
+    message(glue(
       "Processing {chunk_info$total_images} page(s) as images ",
-      "(~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} tokens)"
+      "(~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} tokens)\n"
     ))
 
     # Build single chunk
@@ -222,7 +223,7 @@ build_prompt_images <- function(extracted_document, document_type, audience) {
       audience = audience
     )
     # Get single output
-    result <- tibble::tibble(
+    result <- tibble(
       chunk_id = 1L,
       page_start = min(extracted_document$page_number),
       page_end = max(extracted_document$page_number),
@@ -241,8 +242,8 @@ build_prompt_images <- function(extracted_document, document_type, audience) {
   # Estimate total cost (rough)
   estimated_cost <- (chunk_info$estimated_ttl_input_tokens / 1000000) * COST_PER_1M
 
-  message(glue::glue(
-    "\nEstimated cost: ${format(estimated_cost, digits = 2)} ",
+  message(glue(
+    "Estimated cost: ${format(estimated_cost, digits = 2)} ",
     "(based on ~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} input tokens for {MODEL_IMAGES})"
   ))
   message("Note: This is the minimum estimate. The final cost will depend on the response length, and output tokens are more expensive.\n")

@@ -15,10 +15,10 @@
 #' @keywords internal
 extract_to_text <- function(file_path) {
   # Extract text from PDF by page
-  pages_text <- pdftools::pdf_text(file_path)
+  pages_text <- pdf_text(file_path)
 
   # Return tibble with page numbers and content
-  tibble::tibble(
+  tibble(
     page_number = seq_along(pages_text),
     content = pages_text
   )
@@ -33,7 +33,7 @@ extract_to_images <- function(file_path) {
   # Convert PDF pages to PNG images in temp directory
   # Suppress warning from pdftools internal sprintf call
   image_paths <- suppressWarnings(
-    pdftools::pdf_convert(
+    pdf_convert(
       pdf = file_path,
       format = "png",
       dpi = 150,
@@ -43,7 +43,7 @@ extract_to_images <- function(file_path) {
   )
 
   # Return tibble with page numbers and image paths
-  tibble::tibble(
+  tibble(
     page_number = seq_along(image_paths),
     image_path = image_paths
   )
@@ -81,13 +81,13 @@ extract_document <- function(mode = c("text", "images")) {
 
   # Check if file exists
   if (!file.exists(file_path)) {
-    stop(glue::glue("File not found: {file_path}. If your PDF is in a Sharepoint folder, wait for it to stop syncing."))
+    stop(glue("File not found: {file_path}. If your PDF is in a Sharepoint folder, wait for it to stop syncing."))
   }
 
   # Get file extension; validate that it's PDF
-  file_ext <- tolower(tools::file_ext(file_path))
+  file_ext <- tolower(file_ext(file_path))
   if (file_ext != "pdf") {
-    stop(glue::glue(
+    stop(glue(
       "Only PDF files are supported. Found: {file_ext}\n",
       "If you have a DOCX or PPTX file, please export to PDF first:\n",
       "File > Save As > PDF\n",
@@ -96,7 +96,7 @@ extract_document <- function(mode = c("text", "images")) {
   }
 
   # Start extraction
-  message("Extracting document content...\n")
+  message("⏳ Extracting document content...\n")
 
   # Extract content based on mode
   result <- if (mode == "text") {
