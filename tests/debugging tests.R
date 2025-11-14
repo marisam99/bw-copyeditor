@@ -1,3 +1,8 @@
+# ==============================================================================
+# Title:        Debugging Tests
+# Description:  Code I've been using repeatedly to test the different scripts
+# ==============================================================================
+
 # STEP BY STEP TESTING FOR DEBUGGING: ---------------------------------------
 source("config/dependencies.R")
 source("config/model_config.R")

@@ -13,7 +13,13 @@ An R tool that uses OpenAI's LLM models to identify copyedits in PDF documents a
 
 All of the below are **REQUIRED** inputs:
 
--   **PDF file**: the file you want copyedited. You can choose this via a file picker, but make sure you know where it lives!
+-   **PDF file**: the file to be copyedited, clean of comments/tracked changes. Do NOT include endnotes. You MUST convert your file to PDF:
+
+    -   *In Word:* First clean the document of comments, tracked changes, etc. If you need to leave certain comments in, go to the Review tab and change the Markup setting from "All Markup" to "No Markup." Then go to File \> Print and ensure that the printer selected is "Microsoft Print to PDF." Select the pages you want to print (again, do NOT include endnotes!), and save the file as a .pdf.
+
+    -   *In Powerpoint:* First clean up comments, then go to File \> Save a Copy and in the file type dropdown, choose .pdf. Then save the file in your chosen folder.
+
+    -   If there are other file types you need guidance for, let Marisa know!
 
 -   **Mode**: the copyeditor has text and image mode, and you must specify one.
 
