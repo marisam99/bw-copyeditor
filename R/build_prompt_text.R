@@ -2,39 +2,17 @@
 # Title:        Prompt Builder
 # Last Updated: 2025-11-05
 # Description:  Functions to build user message for LLM prompt from extracted text document.
-#               Combines document content with project context (deliverable type, audience).
+#               Combines document content with project context (document type, audience).
 #               Handles automatic chunking for large documents that would exceed token limits.
 #               Uses rtiktoken for accurate token counting matching OpenAI's tokenizers.
 # Output:       A tibble with fields: chunk_id | page_start | page_end | user_message
 # ==============================================================================
 
-# Load configuration ----------------------------------------------------------
-source(file.path("config", "model_config.R"))
-
 # Helper Functions ------------------------------------------------------------
-
-#' Project Context Header
-#'
-#' Creates the header section with document type and audience.
-#'
-#' @param deliverable_type Type of document (e.g., "external client-facing", "internal").
-#' @param audience Target audience description.
-#' @return Formatted header text.
-#' @keywords internal
-context_header <- function(deliverable_type, audience) {
-  header <- paste0(
-    "---\n",
-    "Type of Document: ", deliverable_type, "\n",
-    "Audience: ", audience, "\n",
-    "---"
-  )
-  return(header)
-}
-
 
 #' Combine pages and content
 #'
-#' Combines all pages into a single text string.
+#' Combines all pages into a single text string that can be passed to the API.
 #'
 #' @param extracted_document Output from extract_document() with page_number and content columns.
 #' @return Combined text from all pages.
@@ -53,48 +31,22 @@ combine_pages <- function(extracted_document) {
   return(all_pages)
 }
 
-
-#' Estimate Token Count
-#'
-#' Counts tokens in text using exact tokenizer for the model.
-#'
-#' @param text Text to count tokens for.
-#' @param model Model name (default: "gpt-4").
-#' @return Exact token count.
-#' @keywords internal
-estimate_tokens <- function(text, model = "gpt-4") {
-  # Handle newer models not yet supported by rtiktoken
-  # GPT-5 uses the same tokenizer as GPT-4o, so fall back to that
-  tokenizer_model <- model
-  if (grepl("^gpt-5", model, ignore.case = TRUE)) {
-    tokenizer_model <- "gpt-4o"
-    message(sprintf("Using gpt-4o tokenizer for %s (rtiktoken doesn't support %s yet)", model, model))
-  }
-
-  # Count tokens using rtiktoken
-  token_count <- rtiktoken::get_token_count(text, model = tokenizer_model)
-  return(token_count)
-}
-
-
 #' Chunk Document
 #'
-#' Splits document into chunks that fit within the token limit.
+#' If a document's content would exceed the token limit, splits content into appropriately-sized chunks.
 #'
 #' @param extracted_document Output from extract_document().
-#' @param deliverable_type Type of document.
-#' @param audience Target audience.
-#' @param token_limit Maximum tokens per chunk.
-#' @param model Model name (default: "gpt-4").
+#' @param document_type Type of document (see README for examples).
+#' @param audience Target audience (see README for examples).
 #' @return Table with chunk_id, page_start, page_end, user_message.
 #' @keywords internal
-chunk_document <- function(extracted_document, deliverable_type, audience, token_limit, model = "gpt-4") {
+chunk_document <- function(extracted_document, document_type, audience) {
   # Create document header (same for all chunks)
-  header <- context_header(deliverable_type, audience)
-  header_tokens <- estimate_tokens(header, model = model)
+  header <- context_header(document_type, audience)
+  header_tokens <- estimate_tokens(header)
 
   # Calculate safety limit (90% of token_limit)
-  safety_limit <- floor(token_limit * 0.9)
+  safety_limit <- floor(CONTEXT_WINDOW_TEXT * 0.9)
 
   # Calculate tokens available for page content, given reserved space for header
   available_tokens <- safety_limit - header_tokens
@@ -117,7 +69,7 @@ chunk_document <- function(extracted_document, deliverable_type, audience, token
 
     # Format the page and estimate its tokens
     formatted_page <- paste0("page ", page_num, ":\n", page_content)
-    page_tokens <- estimate_tokens(formatted_page, model = model)
+    page_tokens <- estimate_tokens(formatted_page)
 
     # Check if adding this page would exceed the limit
     potential_tokens <- current_chunk_tokens + page_tokens
@@ -195,13 +147,13 @@ chunk_document <- function(extracted_document, deliverable_type, audience, token
 
 # Main Function ---------------------------------------------------------------
 
-#' Build Prompt for Text Mode
+#' Build Text-Based Prompt
 #'
-#' Creates formatted prompts from extracted text. Automatically splits large documents into chunks.
+#' Creates user prompts from extracted text. Automatically splits large documents into chunks.
 #'
 #' @param extracted_document Output from extract_document(mode = "text").
-#' @param deliverable_type Type of document (e.g., "external client-facing", "internal").
-#' @param audience Target audience description.
+#' @param document_type Type of document (see README for examples).
+#' @param audience Target audience description (see README for examples).
 #' @return Table with chunk_id, page_start, page_end, and user_message columns.
 #'
 #' @examples
@@ -209,19 +161,15 @@ chunk_document <- function(extracted_document, deliverable_type, audience, token
 #'   # Build prompts from extracted document
 #'   prompts <- build_prompt_text(
 #'     extracted_document = doc,
-#'     deliverable_type = "external client-facing",
-#'     audience = "Healthcare executives"
+#'     document_type = "external presentation",
+#'     audience = "Executive clients"
 #'   )
 #' }
 #'
 #' @export
 build_prompt_text <- function(extracted_document,
-                        deliverable_type,
+                        document_type,
                         audience) {
-
-  # Use constants from config/model_config.R
-  context_window <- CONTEXT_WINDOW_TEXT
-  model <- MODEL_TEXT
 
   # Validate inputs
   if (missing(extracted_document) || !inherits(extracted_document, "data.frame")) {
@@ -232,31 +180,22 @@ build_prompt_text <- function(extracted_document,
     stop("extracted_document must have 'page_number' and 'content' columns")
   }
 
-  if (missing(deliverable_type) || is.null(deliverable_type) || nchar(trimws(deliverable_type)) == 0) {
-    stop("deliverable_type cannot be empty")
+  if (missing(document_type) || is.null(document_type) || nchar(trimws(document_type)) == 0) {
+    stop("Document_type cannot be empty. See README for examples.")
   }
 
   if (missing(audience) || is.null(audience) || nchar(trimws(audience)) == 0) {
-    stop("audience cannot be empty")
-  }
-
-  # Validate rtiktoken package is available
-  if (!requireNamespace("rtiktoken", quietly = TRUE)) {
-    stop("Package 'rtiktoken' is required. Install with: install.packages('rtiktoken')")
+    stop("Audience cannot be empty. See README for examples.")
   }
 
   # Build header and format all pages
-  header <- context_header(deliverable_type, audience)
+  header <- context_header(document_type, audience)
   all_pages <- combine_pages(extracted_document)
 
-  # Construct full inputs
+  # Count total input tokens; inform user
   all_inputs <- paste0(SYSTEM_PROMPT, "\n\n", header, "\n\nFile:\n\n", all_pages)
-
-  # Count total tokens
-  total_tokens <- estimate_tokens(all_inputs, model = model)
-  safety_limit <- floor(context_window * 0.9)
-
-  # Inform user of token count
+  total_tokens <- estimate_tokens(all_inputs)
+  safety_limit <- floor(CONTEXT_WINDOW_TEXT * 0.9)
   message(glue::glue("Total tokens in document: {format(total_tokens, big.mark = ',')} (limit: {format(safety_limit, big.mark = ',')})"))
 
   # Check if we need to chunk
@@ -278,25 +217,21 @@ build_prompt_text <- function(extracted_document,
 
     result <- chunk_document(
       extracted_document = extracted_document,
-      deliverable_type = deliverable_type,
-      audience = audience,
-      token_limit = context_window,
-      model = model
+      document_type = document_type,
+      audience = audience
     )
 
     message(glue::glue("Document split into {nrow(result)} chunk(s)"))
   }
 
   # Estimate total cost (rough)
-  # Cost per 1M tokens for gpt-4 (approximate - may vary by model version)
-  cost_per_1m <- 30.00  # gpt-4 input cost (approximate)
-  estimated_cost <- (total_tokens / 1000000) * cost_per_1m
+  estimated_cost <- (total_tokens / 1000000) * COST_PER_1M
 
   message(glue::glue(
-    "\nEstimated cost: ${format(estimated_cost, digits = 2)} ",
-    "(based on ~{format(total_tokens, big.mark = ',')} input tokens for {model})"
+    "\nEstimated minimum cost: ${format(estimated_cost, digits = 2)} ",
+    "(based on ~{format(total_tokens, big.mark = ',')} input tokens for {MODEL_TEXT})"
   ))
-  message("Note: Actual cost may vary based on response length and current API pricing.\n")
+  message("Note: Final cost will depend on response length.\n")
 
   return(result)
 }

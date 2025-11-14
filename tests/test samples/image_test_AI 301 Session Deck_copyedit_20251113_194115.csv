@@ -1,0 +1,47 @@
+"page_number","issue","original_text","suggested_edit","rationale","severity","confidence","is_valid"
+1,"Capitalization consistency (AI and APIs)","GenAI 301: AI + APIs","GenAI 301: AI + APIs","No change needed to title case, but ensure consistency elsewhere that ""APIs"" is plural without an apostrophe. Flagging here to anchor consistency across deck.","optional",0.55,TRUE
+2,"Hyphenation/word choice","walk through the recent media analysis Bellwether did","walk through the recent media analysis Bellwether conducted","Use more precise, formal verb for a presentation to colleagues; aligns with Bellwether’s empirical tone.","recommended",0.77,TRUE
+3,"Abbreviation style","mins","minutes","For readability with a nontechnical audience and in presentation text, spell out time units.","recommended",0.8,TRUE
+5,"Jargon clarity/AP style punctuation","aka","also known as","Avoid informal shorthand; use plain language per Bellwether tone.","recommended",0.86,TRUE
+6,"Punctuation/typography","e.g., Instagram → Facebook","e.g., Instagram to Facebook","Avoid special arrows in body text for accessibility and consistency; use plain words.","recommended",0.78,TRUE
+6,"Comma splice/clarity","Note: although they use code, APIs aren’t just for software developers","Note: Although they use code, APIs aren’t just for software developers.","Capitalize the first word after a colon when it begins a complete sentence, and add terminal period.","critical",0.82,TRUE
+6,"Hyphenation","no-code","no-code","Leave as is if referring to established term; flagging only to confirm consistency elsewhere.","optional",0.5,TRUE
+7,"Emphasis formatting and consistency","So how do APIs work with GenAI?","So how do APIs work with GenAI?","Ensure italicization or typographic emphasis on ""do"" is consistent with slide styles across deck; remove if inconsistent.","optional",0.52,TRUE
+7,"Numerals style","100+ page documents","100-plus-page documents","AP style prefers ""plus"" in text and hyphenate compound modifier before noun.","recommended",0.76,TRUE
+7,"Hyphenation consistency","front-end user interfaces","front-end user interfaces","Keep hyphen as compound modifier before noun; flag to ensure consistent use elsewhere.","optional",0.62,TRUE
+9,"First person pronoun usage","Myself, Nora, Katrina, Julie, and Andy J.","Nora, Katrina, Julie, Andy J., and I","Use ""I"" rather than ""myself"" as subject; AP style for serial comma and abbreviation of middle initial with period.","critical",0.93,TRUE
+9,"Dash style and capitalization","ICYMI…","ICYMI…","Acronym is acceptable in informal slide header; confirm audience understanding. Optional flag only.","optional",0.4,TRUE
+9,"Number style consistency","more than 1,500 articles","more than 1,500 articles","Numerals 10+ are correct; no change; flagging to ensure consistent comma placement. Optional.","optional",0.45,TRUE
+10,"Hyphenation/style","AI-assisted, public-facing product","AI-assisted, public-facing product","Correct as compound modifiers; no change. Optional confirmation.","optional",0.4,TRUE
+10,"Wordiness/clarity","please take a read to better understand how we’re thinking about rigorous AI usage!","please read to better understand how we’re approaching rigorous AI use.","Tighten phrasing, avoid ""usage"" and exclamation for professional tone.","recommended",0.84,TRUE
+11,"Quotation marks","“humans in the loop,”","“humans in the loop,”","Term is fine; ensure curly quotes are consistent across deck. Optional.","optional",0.41,TRUE
+12,"Colloquialism","Now onto the good stuff!","Now on to the good stuff.","AP style prefers ""on to"" as two words; remove exclamation for professional tone.","recommended",0.88,TRUE
+13,"Title case and preposition choice","Step 1: Deciding to Use the API vs Chat","Step 1: Deciding to Use the API vs. Chat","Include period after ""vs."" per AP style.","critical",0.95,TRUE
+13,"Number style","nearly 1600 articles","nearly 1,600 articles","Use comma in four-digit numbers per AP.","critical",0.96,TRUE
+13,"Emoji usage","documents 🤷‍♀️","documents","Avoid emojis in professional presentations unless audience expectations warrant them; maintain formal tone.","recommended",0.83,TRUE
+13,"Word choice/parallelism","varied in its contents","varied in their content","Plural subject ""articles"" takes plural pronoun; content is noncount noun.","critical",0.9,TRUE
+13,"Wordiness/repetition","signaling that the models had the capability, but not the capacity","signaling the models had capability, but not capacity","Tighten phrasing; articles before abstract nouns can be dropped for concision.","optional",0.72,TRUE
+14,"Title case and punctuation","Step 2: Setting Up the Connection","Step 2: Setting Up the Connection","Title case is fine; no change. Optional confirmation.","optional",0.4,TRUE
+14,"Comma splice/period","API uses a different billing platform than the chat interface","API uses a different billing platform than the chat interface.","Add terminal period.","critical",0.88,TRUE
+14,"Hyphenation and capitalization","get set up","get set up","As a verb, ""set up"" is two words; leave as is but ensure consistency. Optional flag.","optional",0.5,TRUE
+14,"Compound adjectives/clarity","allows bill projects accordingly","allows billing to be allocated to projects accordingly","Original is unclear/missing word; edit clarifies intended meaning.","critical",0.7,TRUE
+14,"Possessive capitalization","API Keys","API keys","Common noun; lowercase ""keys"" per AP style.","critical",0.9,TRUE
+14,"Comma needed for compound sentence","Each team member using the API should create their OWN API key and store it somewhere safe.","Each team member using the API should create their own API key and store it somewhere safe.","Avoid all caps for emphasis in body text; use lowercase for readability and accessibility.","recommended",0.85,TRUE
+14,"Tone/clarity","that’s like giving away your passport.","that’s like giving away your passport.","Analogy is clear; optional note to ensure it fits organizational tone. No change required.","optional",0.38,TRUE
+15,"Hyphenation/clarity","ex: respond in JSON format","for example, respond in JSON format","Avoid informal ""ex:""; spell out for clarity.","recommended",0.86,TRUE
+16,"Comma after introductory clause","Although the prompt uses natural language it requires code to transport the request through the API to the AI model.","Although the prompt uses natural language, it requires code to transport the request through the API to the AI model.","Insert comma after dependent clause per grammar rules.","critical",0.96,TRUE
+16,"Serial comma","Java, C++, or Python.","Java, C++, or Python.","Oxford comma already used correctly; no change. Optional confirmation.","optional",0.39,TRUE
+16,"Package name accuracy","openai package","OpenAI package","Capitalize proper name when referring to the vendor’s package in general terms; if referring to the Python module name, consider monospace formatting “openai.” For slides, capitalize for clarity.","recommended",0.66,TRUE
+16,"Product/package name spelling","ellmr package","ellmer package","Please confirm the exact R package name; “ellmr” may be a typo. Flagging as potential factual/typo issue.","critical",0.4,TRUE
+16,"Ellipsis spacing/style","so using code is not negotiable…","so using code is not negotiable.","Prefer periods to ellipses in explanatory text; maintains professional tone.","recommended",0.81,TRUE
+16,"Quotation marks around jargon","“vibe-coding”","“vibe coding”","Hyphen not necessary; treat as a noun phrase. Quotation marks acceptable as slang.","optional",0.58,TRUE
+18,"Hyphenation/quotes","“high quality”","“high-quality”","Hyphenate compound modifier before a noun per style guide.","critical",0.9,TRUE
+18,"Quotation marks around terms","“minimum acceptable” threshold","minimum acceptable threshold","Unnecessary scare quotes; remove for clarity and tone.","recommended",0.77,TRUE
+19,"Article usage","where AI got it correct","where the AI got it correct","Add article for readability and consistency with later references to ""the AI.""","optional",0.7,TRUE
+20,"Title case and emoji","Step 6: Full Send 🤯","Step 6: Full Send","Remove emoji for professional tone with nontechnical colleagues unless brand permits.","recommended",0.82,TRUE
+20,"Comma with nonessential phrase","which is based on a standard accepted widely in social sciences for content analyses","which is based on a standard widely accepted in the social sciences for content analyses","Improve word order and add article for clarity.","recommended",0.88,TRUE
+20,"Number style","full set of 1579 articles","full set of 1,579 articles","Use comma in four-digit numbers per AP.","critical",0.96,TRUE
+21,"Spacing and punctuation in header","Seems like a lot of work. Is it worth it?","Seems like a lot of work. Is it worth it?","Header is fine; optional confirmation.","optional",0.35,TRUE
+21,"Tilde usage and abbreviation consistency","I spent ~40 hours coding the API calls, and ~60 hours total","I spent about 40 hours coding the API calls, and about 60 hours total","Use words instead of symbols for readability with nontechnical audiences.","recommended",0.82,TRUE
+21,"Hyphenation","mins. per article","minutes per article","Spell out time unit; avoid period after abbreviation in display text.","recommended",0.86,TRUE
+21,"Consistent number formatting","1,579 articles","1,579 articles","Consistent with earlier corrected number; no change. Optional.","optional",0.4,TRUE

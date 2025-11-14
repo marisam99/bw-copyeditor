@@ -3,71 +3,26 @@
 # Last Updated: 2025-11-05
 # Description:  Functions to build user message for multimodal LLM from extracted image document.
 #               Uses ellmer package to format images for vision-capable models.
-#               Handles automatic chunking for large documents that would exceed token/payload limits.
+#               Handles automatic chunking for large documents that would exceed context window limits.
 #               Uses fixed token estimates for image processing costs.
+# Output:       A 
 # ==============================================================================
 
 # Helper Functions ------------------------------------------------------------
 
-#' Project Context Header
+#' Build Multimodal Message
 #'
-#' Creates the header section with document type and audience.
+#' Constructs one user prompt combining project context header with image content
 #'
-#' @param deliverable_type Type of document (e.g., "external client-facing", "internal").
-#' @param audience Target audience description.
-#' @return Formatted header text.
-#' @keywords internal
-context_header <- function(deliverable_type, audience) {
-  header <- paste0(
-    "---\n",
-    "Type of Document: ", deliverable_type, "\n",
-    "Audience: ", audience, "\n",
-    "---"
-  )
-  return(header)
-}
-
-
-#' Estimate Token Count for Image
-#'
-#' Returns token cost for processing an image (fixed based on detail level).
-#'
-#' @param detail Detail level: "high" (~2,805 tokens, better for text) or "low" (85 tokens).
-#' @return Estimated token count.
-#' @keywords internal
-estimate_image_tokens <- function(detail = "high") {
-  # Token costs from OpenAI Vision API documentation
-  # These are approximations - actual costs may vary slightly
-  tokens <- switch(detail,
-    "high" = 2805,  # High detail: tiles the image for better text recognition
-    "low" = 85,     # Low detail: single 512x512 view
-    stop(glue::glue("Invalid detail level: {detail}. Must be 'high' or 'low'."))
-  )
-
-  return(tokens)
-}
-
-
-#' Build Multimodal Content
-#'
-#' Constructs multimodal content combining text context with images.
-#'
-#' @param extracted_document Output from extract_document(mode = "images").
-#' @param deliverable_type Type of document.
-#' @param audience Target audience.
-#' @param detail Image detail level (default: "high").
+#' @param extracted_document Output from extract_document(mode = "image").
+#' @param document_type Type of document (see README for examples).
+#' @param audience Target audience (see README for examples).
 #' @return List of ellmer content objects.
 #' @keywords internal
-build_multimodal_content <- function(extracted_document, deliverable_type, audience, detail = "high") {
+build_multimodal_message <- function(extracted_document, document_type, audience) {
 
-  # Load required package
-  if (!requireNamespace("ellmer", quietly = TRUE)) {
-    stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
-  }
-
-  # Start with text context
   # Start with text context (header only, system prompt loaded separately)
-  header <- context_header(deliverable_type, audience)
+  header <- context_header(document_type, audience)
 
   # Initialize content list with header
   content <- list(header)
@@ -84,71 +39,103 @@ build_multimodal_content <- function(extracted_document, deliverable_type, audie
     # ellmer::content_image_file() handles encoding automatically
     content[[length(content) + 1]] <- ellmer::content_image_file(
       path = image_path,
-      resize = DETAIL
+      resize = DETAIL_SETTING
     )
   }
 
   return(content)
 }
 
+#' Check Need for Chunk
+#' 
+#' Determines whether to chunk based on total images to send and context window
+#' Note: Context window depends on the model and is set in model_config.R
+#' 
+#' @param extracted_document Output from extract_document(mode = "image")
+#' @param document_type Type of document (see README for examples).
+#' @param audience Target audience (see README for examples).
+#' @return yes or no
+#' @keywords internal
+check_for_chunk <- function(extracted_document, document_type, audience) {
+  
+  # Calculate tokens for each piece of the prompt
+  header <- context_header(document_type, audience) # create header that will go with chunk
+  header_tokens <- estimate_tokens(header) # estimate tokens needed for header
+
+  total_images <- nrow(extracted_document) # total no. of images to be sent
+  per_image_tokens <- switch(DETAIL_SETTING, "high" = 2805, "low" = 85) # uses setting from model_config.R
+  ttl_img_tokens <- total_images * per_image_tokens
+
+  # Estimate total input tokens for entire document
+  estimated_ttl_input_tokens <- SYSTEM_PROMPT_TOKENS + header_tokens + ttl_img_tokens
+
+  # Calculate if we need to chunk
+  safety_limit <- floor(CONTEXT_WINDOW_IMAGES * 0.9) # Leave room for system prompt + response
+  images_per_chunk <- floor(safety_limit / per_image_tokens) # Calculates safe no. of images per API call
+  if (total_images <= images_per_chunk && estimated_ttl_input_tokens <= safety_limit) {
+    message("Document fits in single chunk - no splitting needed")
+    chunk_decision <- "no"
+  } else {
+    chunk_decision <- "yes"
+  }
+  return(list(
+    chunk_decision = chunk_decision,
+    total_images = total_images,
+    images_per_chunk = images_per_chunk,
+    per_image_tokens = per_image_tokens,
+    header_tokens = header_tokens,
+    estimated_ttl_input_tokens = estimated_ttl_input_tokens
+  ))
+}
+
 
 #' Chunk Document by Image Count
 #'
-#' Splits document into chunks based on image count.
+#' Splits content into chunks for user prompts, based on image count.
 #'
 #' @param extracted_document Output from extract_document(mode = "images").
-#' @param deliverable_type Type of document.
-#' @param audience Target audience.
-#' @param images_per_chunk Maximum images per chunk (default: 20).
-#' @param detail Image detail level (default: "high").
-#' @param model Model name (default: "gpt-4o").
+#' @param document_type Type of document (see README for examples).
+#' @param audience Target audience (see README for examples).
+#' @param chunk_info List generated by check_for_chunk() with relevant information.
 #' @return Table with chunk_id, page_start, page_end, user_message.
 #' @keywords internal
-chunk_by_images <- function(extracted_document,
-                            deliverable_type,
-                            audience,
-                            images_per_chunk = 20,
-                            detail = "high",
-                            model = "gpt-4o") {
-
-  total_pages <- nrow(extracted_document)
+chunk_by_images <- function(extracted_document, document_type, audience, chunk_info) {
+  
+  # Initialize empty chunks
   chunks <- list()
   chunk_id <- 1
 
   # Calculate number of chunks needed
-  num_chunks <- ceiling(total_pages / images_per_chunk)
-
+  num_chunks <- ceiling(chunk_info$total_images / chunk_info$images_per_chunk) # using info passed from check_for_chunk
   message(glue::glue(
-    "Splitting {total_pages} pages into {num_chunks} chunk(s) ",
-    "({images_per_chunk} images per chunk)"
+    "Splitting {chunk_info$total_images} pages into {num_chunks} chunk(s) ",
+    "({chunk_info$images_per_chunk} images per chunk)"
   ))
 
   # Split into chunks
   for (i in seq_len(num_chunks)) {
     # Calculate page range for this chunk
-    page_start <- ((i - 1) * images_per_chunk) + 1
-    page_end <- min(i * images_per_chunk, total_pages)
+    page_start <- ((i - 1) * chunk_info$images_per_chunk) + 1
+    page_end <- min(i * chunk_info$images_per_chunk, chunk_info$total_images)
 
     # Extract pages for this chunk
     chunk_pages <- extracted_document |>
       dplyr::filter(page_number >= page_start, page_number <= page_end)
 
     # Build multimodal content
-    user_message <- build_multimodal_content(
+    user_message <- build_multimodal_message(
       extracted_document = chunk_pages,
-      deliverable_type = deliverable_type,
-      audience = audience,
-      detail = detail
+      document_type = document_type,
+      audience = audience
     )
 
     # Estimate tokens for this chunk
-    image_tokens <- nrow(chunk_pages) * estimate_image_tokens(detail)
-    text_tokens <- 500  # Rough estimate for context text
-    total_tokens <- image_tokens + text_tokens
+    chunk_image_tokens <- nrow(chunk_pages) * chunk_info$per_image_tokens # count image tokens in the chunk
+    total_chunk_tokens <- SYSTEM_PROMPT_TOKENS + chunk_info$header_tokens + chunk_image_tokens # total estimate of tokens for the chunk
 
     message(glue::glue(
       "  Chunk {chunk_id}: pages {page_start}-{page_end} ",
-      "(~{format(total_tokens, big.mark = ',')} tokens)"
+      "(~{format(total_chunk_tokens, big.mark = ',')} tokens)"
     ))
 
     # Store chunk info
@@ -156,7 +143,7 @@ chunk_by_images <- function(extracted_document,
       chunk_id = chunk_id,
       page_start = page_start,
       page_end = page_end,
-      user_message = user_message  # Already a list, no extra wrapping needed
+      user_message = user_message
     )
 
     chunk_id <- chunk_id + 1
@@ -178,12 +165,12 @@ chunk_by_images <- function(extracted_document,
 
 #' Build Prompt for Image Mode
 #'
-#' Creates formatted prompts from extracted images. Automatically splits large documents into chunks.
-#' Use only for slide decks or documents with visual elements. For text-only documents, use build_prompt_text().
+#' Creates user prompts from extracted images. Automatically splits large documents into chunks.
+#' Used only for image mode
 #'
 #' @param extracted_document Output from extract_document(mode = "images").
-#' @param deliverable_type Type of document (e.g., "external client-facing", "internal").
-#' @param audience Target audience description.
+#' @param document_type Type of document (see README for examples).
+#' @param audience Target audience description (see README for examples).
 #' @return Table with chunk_id, page_start, page_end, and user_message (list-column with ellmer content).
 #'
 #' @examples
@@ -192,21 +179,13 @@ chunk_by_images <- function(extracted_document,
 #'   slides <- extract_document(mode = "images")
 #'   prompts <- build_prompt_images(
 #'     extracted_document = slides,
-#'     deliverable_type = "external client-facing",
-#'     audience = "Healthcare executives"
+#'     document_type = "presentation",
+#'     audience = "Executive clients"
 #'   )
 #' }
 #'
 #' @export
-build_prompt_images <- function(extracted_document,
-                               deliverable_type,
-                               audience) {
-
-  # Use constants from config/model_config.R
-  detail <- DETAIL
-  context_window <- CONTEXT_WINDOW_IMAGES
-  images_per_chunk <- IMAGES_PER_CHUNK
-  model <- MODEL_IMAGES
+build_prompt_images <- function(extracted_document, document_type, audience) {
 
   # Validate inputs
   if (missing(extracted_document) || !inherits(extracted_document, "data.frame")) {
@@ -217,96 +196,56 @@ build_prompt_images <- function(extracted_document,
     stop("extracted_document must have 'page_number' and 'image_path' columns. Did you use mode = 'images'?")
   }
 
-  if (missing(deliverable_type) || is.null(deliverable_type) || nchar(trimws(deliverable_type)) == 0) {
-    stop("deliverable_type cannot be empty")
+  if (missing(document_type) || is.null(document_type) || nchar(trimws(document_type)) == 0) {
+    stop("Document_type cannot be empty. See README for examples.")
   }
 
   if (missing(audience) || is.null(audience) || nchar(trimws(audience)) == 0) {
-    stop("audience cannot be empty")
+    stop("Audience cannot be empty. See README for examples.")
   }
 
-  if (!detail %in% c("high", "low")) {
-    stop("detail must be 'high' or 'low'")
-  }
+  # Determine whether to chunk
+  chunk_info <- check_for_chunk(extracted_document, document_type, audience)
 
-  # Validate ellmer package is available
-  if (!requireNamespace("ellmer", quietly = TRUE)) {
-    stop("Package 'ellmer' is required. Install with: install.packages('ellmer')")
-  }
-
-  # Validate base64enc package is available
-  if (!requireNamespace("base64enc", quietly = TRUE)) {
-    stop("Package 'base64enc' is required. Install with: install.packages('base64enc')")
-  }
-
-  # Estimate total tokens
-  total_pages <- nrow(extracted_document)
-  tokens_per_image <- estimate_image_tokens(detail)
-  estimated_tokens <- total_pages * tokens_per_image
-
-  message(glue::glue(
-    "Processing {total_pages} page(s) as images ",
-    "(~{format(estimated_tokens, big.mark = ',')} tokens at high detail)"
-  ))
-
-  # Calculate if we need to chunk
-  # Use 90% of context window for safety (leave room for system prompt + response)
-  safety_limit <- floor(context_window * 0.9)
-  max_images_in_window <- floor(safety_limit / tokens_per_image)
-
-  # Check if document fits in single chunk
-  if (total_pages <= images_per_chunk && estimated_tokens <= safety_limit) {
-    message("Document fits in single chunk - no splitting needed")
+  if(chunk_info$chunk_decision == "no" ){
+    
+    # Tell user
+    message(glue::glue(
+      "Processing {chunk_info$total_images} page(s) as images ",
+      "(~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} tokens)"
+    ))
 
     # Build single chunk
-    user_message <- build_multimodal_content(
+    user_message <- build_multimodal_message(
       extracted_document = extracted_document,
-      deliverable_type = deliverable_type,
-      audience = audience,
-      detail = detail
+      document_type = document_type,
+      audience = audience
     )
-
+    # Get single output
     result <- tibble::tibble(
       chunk_id = 1L,
       page_start = min(extracted_document$page_number),
       page_end = max(extracted_document$page_number),
       user_message = I(list(user_message))
     )
-
   } else {
     # Need to chunk the document
-    if (total_pages > max_images_in_window) {
-      warning(glue::glue(
-        "Document has {total_pages} pages but context window supports ~{max_images_in_window} images. ",
-        "Some chunks may exceed limits. Consider reducing images_per_chunk parameter."
-      ))
-    }
-
-    message(glue::glue(
-      "Document is too large to send all at once. 
-        It will be split into multiple chunks (limit: {images_per_chunk} images per chunk)\n"
-    ))
-
     result <- chunk_by_images(
       extracted_document = extracted_document,
-      deliverable_type = deliverable_type,
+      document_type = document_type,
       audience = audience,
-      images_per_chunk = images_per_chunk,
-      detail = detail,
-      model = model
+      chunk_info = chunk_info
     )
   }
 
   # Estimate total cost (rough)
-  total_input_tokens <- estimated_tokens + (nrow(result) * 500)  # Add context text estimate
-  cost_per_1m <- 2.50  # gpt-4o input cost (approximate)
-  estimated_cost <- (total_input_tokens / 1000000) * cost_per_1m
+  estimated_cost <- (chunk_info$estimated_ttl_input_tokens / 1000000) * COST_PER_1M
 
   message(glue::glue(
     "\nEstimated cost: ${format(estimated_cost, digits = 2)} ",
-    "(based on ~{format(total_input_tokens, big.mark = ',')} input tokens for {model})"
+    "(based on ~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} input tokens for {MODEL_IMAGES})"
   ))
-  message("Note: Actual cost may vary based on response length and current API pricing.\n")
+  message("Note: This is the minimum estimate. The final cost will depend on the response length, and output tokens are more expensive.\n")
 
   return(result)
 }

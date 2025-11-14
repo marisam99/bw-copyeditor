@@ -7,70 +7,72 @@
 # Global Settings -------------------------------------------------------------
 # Settings that apply across all modes (text and images)
 
-#' Default sampling temperature for API calls
+#' Default sampling temperature for non-reasoning API calls. Range: 0.0-2.0
 #' Lower values (closer to 0) make output more focused and deterministic.
-#' Range: 0.0 to 2.0
 #' NOTE: GPT-5 (reasoning model) does not support temperature parameter
-#' This setting is retained for backward compatibility but not currently used
+#' This setting is retained for backward compatibility but not currently used.
 DEFAULT_TEMPERATURE <- 0.3
 
 #' Maximum number of retry attempts for failed API requests
 #' Used for rate limit errors (429) and server errors (500, 502, 503, 504)
 MAX_RETRY_ATTEMPTS <- 3
 
+#' Default reasoning level for reasoning API calls. (minimal, low, medium, high)
+#' NOTE: GPT-4o and 4.1 are not reasoning models and do not support this parameter
+REASONING_LEVEL <- "minimal" # GPT-5 only
+
+#' Pricing for input tokens
+COST_PER_1M <- 1.25 # for GPT-5, as of November 13, 2025
+
 
 # Text Mode Configuration -----------------------------------------------------
 # Settings for text-only copyediting (publications, reports, text-heavy documents)
 
-#' Model Options: 
-MODEL_TEXT <- "gpt-5" # GPT-5 is a reasoning model with excellent performance
+#' Model: 
+MODEL_TEXT <- "gpt-5" # GPT-5 is a reasoning model with balanced costs
 
 #' Maximum tokens per API request for text mode
 CONTEXT_WINDOW_TEXT <- 400000
-
-#' Reasoning level (minimal, low, medium, high)
-REASONING_LEVEL <- "minimal" # GPT-5 only
 
 
 # Image Mode Configuration ----------------------------------------------------
 # Settings for image-based copyediting (slide decks, presentations, visual documents)
 
-#' Model for image-based copyediting
-#' Must support vision capabilities for reading text in images
-#' GPT-5 has multimodal capabilities and is a reasoning model
-MODEL_IMAGES <- "gpt-5"
+#' Model for image-based copyediting (must support computer vision)
+MODEL_IMAGES <- "gpt-5" # GPT-5 has multimodal capabilities
 
 #' Maximum tokens per API request for image mode
-#' Lower than text mode due to image token overhead
-CONTEXT_WINDOW_IMAGES <- 180000
+CONTEXT_WINDOW_IMAGES <- 180000 # Lower than text mode due to image token overhead
 
 #' Maximum completion tokens in response for image mode
-#' GPT-5 reasoning models require max_completion_tokens instead of max_tokens
+#' Note: GPT-5 requires max_completion_tokens instead of max_tokens;
+#'      previous models will not use this parameter
+MAX_COMPLETION_TOKENS_IMAGES <- 16000 
 #' Higher than default due to potentially more issues to report from visual content
-MAX_COMPLETION_TOKENS_IMAGES <- 16000
 
-#' Image detail level for vision API
-#' Options: "high" or "low" (high recommended for copyediting to catch all text)
-DETAIL <- "high"
-
-#' Maximum images per chunk for image mode
-#' Conservative limit to avoid token overflow and ensure reliable processing
-IMAGES_PER_CHUNK <- 20
+#' Image detail level for vision API (high or low)
+DETAIL_SETTING <- "high" # high recommended for copyediting to catch all text
 
 
 # Helper Functions ------------------------------------------------------------
 
-#' Load System Prompt from Config File
+#' Estimate Text-Based Token Count
 #'
-#' Loads the system prompt from config/system_prompt.txt. This function is
-#' used internally by API calling functions to load the copyediting instructions.
+#' Counts tokens in text using OpenAI's tokenizers.
 #'
-#' @return Character string containing the system prompt.
+#' @param text Text to count tokens for.
+#' @return Exact token count.
 #' @keywords internal
-load_system_prompt <- function() {
-  system_prompt_path <- file.path("config", "system_prompt.txt")
-  if (!file.exists(system_prompt_path)) {
-    stop("System prompt file not found at config/system_prompt.txt")
+estimate_tokens <- function(text) {
+  tokenizer_model <- MODEL_TEXT # the model rtiktoken will use to calculate estimates, set in model_config.R
+
+  # For newer models not yet supported by rtiktoken, such as GPT-5, fall back to 4o
+  if (grepl("^gpt-5", tokenizer_model, ignore.case = TRUE)) {
+    tokenizer_model <- "gpt-4o"
+    message(sprintf("Using gpt-4o tokenizer for %s (rtiktoken doesn't support it yet)", MODEL_TEXT))
   }
-  paste(readLines(system_prompt_path, warn = FALSE), collapse = "\n")
+
+  # Count tokens using rtiktoken
+  token_count <- rtiktoken::get_token_count(text, model = tokenizer_model)
+  return(token_count)
 }

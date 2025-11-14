@@ -4,6 +4,7 @@
 # Description:  Functions to extract content from PDF documents for LLM copyediting.
 #               Text mode for documents without images (extracts text by page).
 #               Image mode for documents with images (e.g., slide decks, embedded charts) (converts pages to images).
+# Output:       A tibble, with fields dependent on text or image mode
 # ==============================================================================
 
 # Helper Functions ------------------------------------------------------------
@@ -22,7 +23,6 @@ extract_to_text <- function(file_path) {
     content = pages_text
   )
 }
-
 
 #' Convert PDF Pages to Images
 #' @param file_path Path to PDF file
@@ -56,7 +56,7 @@ extract_to_images <- function(file_path) {
 #'
 #' Opens a file picker and extracts content from a PDF.
 #'
-#' @param mode Extraction mode: "text" (default) or "images".
+#' @param mode Extraction mode: "text" (default) or "image".
 #'   Text mode: For reports and publications.
 #'   Images mode: For slide decks with visuals.
 #' @return A table with page numbers and either text content or image file paths.
@@ -81,13 +81,11 @@ extract_document <- function(mode = c("text", "images")) {
 
   # Check if file exists
   if (!file.exists(file_path)) {
-    stop(glue::glue("File not found: {file_path}. For more information, see the README.md."))
+    stop(glue::glue("File not found: {file_path}. If your PDF is in a Sharepoint folder, wait for it to stop syncing."))
   }
 
-  # Get file extension
+  # Get file extension; validate that it's PDF
   file_ext <- tolower(tools::file_ext(file_path))
-
-  # Only accept PDF files
   if (file_ext != "pdf") {
     stop(glue::glue(
       "Only PDF files are supported. Found: {file_ext}\n",
@@ -97,8 +95,8 @@ extract_document <- function(mode = c("text", "images")) {
     ))
   }
 
-  # Start parsing
-  message("Parsing document...\n")
+  # Start extraction
+  message("Extracting document content...\n")
 
   # Extract content based on mode
   result <- if (mode == "text") {

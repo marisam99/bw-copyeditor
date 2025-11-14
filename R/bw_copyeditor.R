@@ -9,7 +9,7 @@
 
 # Configurations -------------------------------------------------------------
 source(file.path("config", "model_config.R"))
-SYSTEM_PROMPT <- load_system_prompt()
+source(file.path("R", "load_context.R"))
 source(file.path("R", "extract_documents.R"))
 source(file.path("R", "build_prompt_text.R"))
 source(file.path("R", "build_prompt_images.R"))
@@ -48,7 +48,7 @@ source(file.path("R", "process_results.R"))
 #' }
 #'
 #' @export
-process_document <- function(mode = c("text", "images"),
+copyedit_document <- function(mode = c("text", "images"),
                              document_type,
                              audience) {
 
@@ -84,13 +84,13 @@ process_document <- function(mode = c("text", "images"),
   if (mode == "text") {
     user_message_chunks <- build_prompt_text(
       extracted_document = extracted_doc,
-      deliverable_type = document_type,
+      document_type = document_type,
       audience = audience
     )
   } else {
     user_message_chunks <- build_prompt_images(
       extracted_document = extracted_doc,
-      deliverable_type = document_type,
+      document_type = document_type,
       audience = audience
     )
   }
