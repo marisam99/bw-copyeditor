@@ -19,7 +19,7 @@
 #' @keywords internal
 combine_pages <- function(extracted_document) {
   # Format each page as "page X:\n{content}"
-  combined_pages <- purrr::map2_chr(
+  combined_pages <- map2_chr(
     extracted_document$page_number,
     extracted_document$content,
     ~ paste0("page ", .x, ":\n", .y)
@@ -76,13 +76,13 @@ chunk_document <- function(extracted_document, document_type, audience) {
 
     # If this page alone is too large, warn but include it anyway
     if (page_tokens > available_tokens && length(current_chunk_pages) == 0) {
-      warning(glue::glue("Page {page_num} exceeds token limit but will be included as a single chunk"))
+      warning(glue("Page {page_num} exceeds token limit but will be included as a single chunk"))
     }
 
     # Start new chunk if needed
     if (potential_tokens > available_tokens && length(current_chunk_pages) > 0) {
       # Save current chunk
-      chunk_data <- tibble::tibble(
+      chunk_data <- tibble(
         page_number = sapply(current_chunk_pages, `[[`, "page_number"),
         content = sapply(current_chunk_pages, `[[`, "content")
       )
@@ -117,7 +117,7 @@ chunk_document <- function(extracted_document, document_type, audience) {
 
   # Save final chunk
   if (length(current_chunk_pages) > 0) {
-    chunk_data <- tibble::tibble(
+    chunk_data <- tibble(
       page_number = sapply(current_chunk_pages, `[[`, "page_number"),
       content = sapply(current_chunk_pages, `[[`, "content")
     )
@@ -134,7 +134,7 @@ chunk_document <- function(extracted_document, document_type, audience) {
   }
 
   # Convert to tibble
-  result <- tibble::tibble(
+  result <- tibble(
     chunk_id = sapply(chunks, `[[`, "chunk_id"),
     page_start = sapply(chunks, `[[`, "page_start"),
     page_end = sapply(chunks, `[[`, "page_end"),
@@ -196,14 +196,14 @@ build_prompt_text <- function(extracted_document,
   all_inputs <- paste0(SYSTEM_PROMPT, "\n\n", header, "\n\nFile:\n\n", all_pages)
   total_tokens <- estimate_tokens(all_inputs)
   safety_limit <- floor(CONTEXT_WINDOW_TEXT * 0.9)
-  message(glue::glue("Total tokens in document: {format(total_tokens, big.mark = ',')} (limit: {format(safety_limit, big.mark = ',')})"))
+  message(glue("Total tokens in document: {format(total_tokens, big.mark = ',')} (limit: {format(safety_limit, big.mark = ',')})"))
 
   # Check if we need to chunk
   if (total_tokens <= safety_limit) {
     message("Document fits in single chunk - no splitting needed\n")
     # Fits in single message
     user_message <- paste0(header, "\n\nFile:\n\n", all_pages)
-    result <- tibble::tibble(
+    result <- tibble(
       chunk_id = 1L,
       page_start = min(extracted_document$page_number),
       page_end = max(extracted_document$page_number),
@@ -211,7 +211,7 @@ build_prompt_text <- function(extracted_document,
     )
   } else {
     # Need to chunk the document
-    message(glue::glue(
+    message(glue(
       "Document exceeds token limit ({format(total_tokens, big.mark = ',')} > {format(safety_limit, big.mark = ',')}). Splitting into chunks..."
     ))
 
@@ -221,13 +221,13 @@ build_prompt_text <- function(extracted_document,
       audience = audience
     )
 
-    message(glue::glue("Document split into {nrow(result)} chunk(s)\n"))
+    message(glue("Document split into {nrow(result)} chunk(s)\n"))
   }
 
   # Estimate total cost (rough)
   estimated_cost <- (total_tokens / 1000000) * COST_PER_1M
 
-  message(glue::glue(
+  message(glue(
     "Estimated minimum cost: ${format(estimated_cost, digits = 2)} ",
     "(based on ~{format(total_tokens, big.mark = ',')} input tokens for {MODEL_TEXT})"
   ))

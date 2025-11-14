@@ -8,6 +8,7 @@
 # ==============================================================================
 
 # Configurations -------------------------------------------------------------
+source(file.path("config", "dependencies.R"))
 source(file.path("config", "model_config.R"))
 source(file.path("R", "load_context.R"))
 source(file.path("R", "extract_documents.R"))
@@ -169,7 +170,7 @@ copyedit_document <- function(mode = c("text", "images"),
 
   # Auto-export results to CSV
   if (nrow(results_df) > 0) {
-    base_name <- tools::file_path_sans_ext(basename(file_path))
+    base_name <- file_path_sans_ext(basename(file_path))
     timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
     output_filename <- sprintf("%s_copyedit_%s.csv", base_name, timestamp)
 

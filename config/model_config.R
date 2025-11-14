@@ -78,6 +78,6 @@ estimate_tokens <- function(text) {
   }
 
   # Count tokens using rtiktoken
-  token_count <- rtiktoken::get_token_count(text, model = tokenizer_model)
+  token_count <- get_token_count(text, model = tokenizer_model)
   return(token_count)
 }

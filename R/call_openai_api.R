@@ -89,7 +89,7 @@ parse_json_response <- function(response, model, chat) {
   # Parse the JSON suggestions from response
   suggestions <- tryCatch({
     # Response should be a JSON string
-    parsed <- jsonlite::fromJSON(response, simplifyVector = FALSE)
+    parsed <- fromJSON(response, simplifyVector = FALSE)
 
     # If it's already parsed (has suggestions field), use it directly
     if (is.list(parsed) && "suggestions" %in% names(parsed)) {
@@ -175,7 +175,7 @@ call_openai_api_text <- function(user_message) {
     # GPT-5 is a reasoning model that doesn't support the temperature parameter
     # (only supports default value of 1)
     # Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
-    chat <- ellmer::chat_openai(
+    chat <- chat_openai(
       system_prompt = SYSTEM_PROMPT,
       model = MODEL_TEXT,
       api_args = list(
@@ -235,7 +235,7 @@ call_openai_api_images <- function(user_content) {
     # - Requires max_completion_tokens instead of max_tokens
     # - Does not support temperature parameter (only accepts default value of 1)
     # - Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
-    chat <- ellmer::chat_openai(
+    chat <- chat_openai(
       system_prompt = SYSTEM_PROMPT,
       model = MODEL_IMAGES,
       api_args = list(
