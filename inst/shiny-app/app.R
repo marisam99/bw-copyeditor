@@ -250,18 +250,28 @@ server <- function(input, output, session) {
         incProgress(0.2, detail = paste("Preparing", total_pages, "pages..."))
         add_log_message(sprintf("⏳ Preparing %d pages to send to AI model", total_pages))
 
-        user_message_chunks <- if (input$mode == "text") {
-          build_prompt_text(
-            extracted_document = extracted_doc,
-            document_type = input$doc_type,
-            audience = input$audience
-          )
-        } else {
-          build_prompt_images(
-            extracted_document = extracted_doc,
-            document_type = input$doc_type,
-            audience = input$audience
-          )
+        # Capture stdout and stderr from build_prompt functions
+        message_output <- capture.output({
+          user_message_chunks <- if (input$mode == "text") {
+            build_prompt_text(
+              extracted_document = extracted_doc,
+              document_type = input$doc_type,
+              audience = input$audience
+            )
+          } else {
+            build_prompt_images(
+              extracted_document = extracted_doc,
+              document_type = input$doc_type,
+              audience = input$audience
+            )
+          }
+        }, type = "message")
+
+        # Add captured messages to log
+        for (msg in message_output) {
+          if (nchar(trimws(msg)) > 0) {
+            add_log_message(msg)
+          }
         }
 
         # Process chunks
