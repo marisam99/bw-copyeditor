@@ -22,14 +22,22 @@ pkg_root <- system.file(package = "bwcopyeditor")
 if (pkg_root == "") {
   # Development mode - source files directly
   pkg_root <- "../.."
-  source(file.path(pkg_root, "config", "dependencies.R"))
-  source(file.path(pkg_root, "config", "model_config.R"))
-  source(file.path(pkg_root, "R", "load_context.R"))
-  source(file.path(pkg_root, "R", "extract_documents.R"))
-  source(file.path(pkg_root, "R", "build_prompt_text.R"))
-  source(file.path(pkg_root, "R", "build_prompt_images.R"))
-  source(file.path(pkg_root, "R", "call_openai_api.R"))
-  source(file.path(pkg_root, "R", "process_results.R"))
+
+  # Save current directory and change to project root for sourcing
+  original_wd <- getwd()
+  setwd(pkg_root)
+
+  source("config/dependencies.R")
+  source("config/model_config.R")
+  source("R/load_context.R")
+  source("R/extract_documents.R")
+  source("R/build_prompt_text.R")
+  source("R/build_prompt_images.R")
+  source("R/call_openai_api.R")
+  source("R/process_results.R")
+
+  # Restore original directory
+  setwd(original_wd)
 }
 
 # ==============================================================================
