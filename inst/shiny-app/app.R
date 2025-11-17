@@ -7,7 +7,7 @@
 # Note: In deployed app, packages are loaded from the package itself
 # For local development, ensure dependencies.R is sourced
 if (!requireNamespace("shiny", quietly = TRUE)) {
-  stop("Please install required packages. Run: install.packages(c('shiny', 'DT', 'shinycssloaders', 'bslib', 'here'))")
+  stop("Please install required packages. Run: install.packages(c('shiny', 'DT', 'shinycssloaders', 'bslib', 'here', 'markdown'))")
 }
 
 library(shiny)
