@@ -4,23 +4,36 @@ Interactive web interface for the BW Copyeditor package.
 
 ## Running Locally
 
-### Option 1: From R Console (Recommended)
+### Quick Start (Recommended)
+
+From the R console in Positron or RStudio:
 
 ```r
-# If package is installed
+# Run directly from the project directory
+shiny::runApp("inst/shiny-app")
+```
+
+### Alternative Methods
+
+**Using the helper function:**
+```r
+# Source the launcher function
+source("R/run_app.R")
+
+# Launch app
+run_copyeditor_app()
+```
+
+**If package is installed:**
+```r
 library(bwcopyeditor)
 run_copyeditor_app()
 ```
 
-### Option 2: Direct from Directory
-
-```r
-# From RStudio
-# Open inst/shiny-app/app.R and click "Run App"
-
-# From R console
-shiny::runApp("inst/shiny-app")
-```
+**From Positron/RStudio IDE:**
+- Open `inst/shiny-app/app.R`
+- Click "Run App" button (RStudio) or use Command Palette (Positron)
+- In Positron: Cmd/Ctrl+Shift+P → "Shiny: Run Shiny Application"
 
 ## Usage
 
@@ -43,18 +56,89 @@ shiny::runApp("inst/shiny-app")
 - One-click CSV export with timestamps
 - Modern, responsive design
 
-## Requirements
+## Setup
 
-Ensure these packages are installed:
+### 1. Install Required Packages
+
 ```r
-install.packages(c("shiny", "DT", "shinycssloaders", "bslib"))
+# Check which packages you need
+required <- c("shiny", "DT", "shinycssloaders", "bslib")
+missing <- required[!sapply(required, requireNamespace, quietly = TRUE)]
+
+if (length(missing) > 0) {
+  install.packages(missing)
+} else {
+  message("✅ All packages already installed!")
+}
 ```
 
-## API Key
+### 2. Set OpenAI API Key
 
-The app uses the OpenAI API. Ensure your API key is set:
+The app uses the OpenAI API. Set your API key:
+
+**Temporary (current R session only):**
 ```r
-Sys.setenv(OPENAI_API_KEY = "your-key-here")
+Sys.setenv(OPENAI_API_KEY = "sk-your-key-here")
+
+# Verify it's set
+Sys.getenv("OPENAI_API_KEY")
 ```
 
-For deployment to shinyapps.io, set the environment variable in the app settings on the shinyapps.io dashboard.
+**Permanent (recommended):**
+```r
+# Open .Renviron file
+file.edit("~/.Renviron")
+
+# Add this line to the file:
+# OPENAI_API_KEY=sk-your-key-here
+
+# Save, close, and restart R
+```
+
+### 3. Navigate to Project Directory
+
+```r
+# Check you're in the right place
+getwd()  # Should show .../bw-copyeditor
+
+# If not, set working directory
+setwd("/path/to/bw-copyeditor")
+```
+
+## Troubleshooting
+
+### App Won't Start
+```r
+# Check all packages are installed
+required <- c("shiny", "DT", "shinycssloaders", "bslib")
+sapply(required, requireNamespace, quietly = TRUE)  # All should be TRUE
+
+# Verify working directory
+getwd()  # Should be in bw-copyeditor folder
+
+# Try with error browser
+options(shiny.error = browser)
+shiny::runApp("inst/shiny-app")
+```
+
+### API Errors
+```r
+# Verify API key is set
+Sys.getenv("OPENAI_API_KEY")  # Should show your key (not empty)
+
+# If empty, set it
+Sys.setenv(OPENAI_API_KEY = "sk-your-key-here")
+```
+
+### File Upload Issues
+- Start with a small PDF (< 10 pages)
+- Watch the R console in Positron for error messages
+- Ensure PDF is not corrupted or password-protected
+
+### Stopping the App
+- In Positron/RStudio R console: Press **Ctrl+C** (Cmd+C on Mac)
+- Or close browser and interrupt R process
+
+## Deployment
+
+For deployment to shinyapps.io, set the environment variable in the app settings on the shinyapps.io dashboard (not in your code).
