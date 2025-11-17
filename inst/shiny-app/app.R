@@ -195,7 +195,7 @@ server <- function(input, output, session) {
     process_messages("")
 
     # Open the accordion to show processing log
-    accordion_panel_open("log_accordion", values = "Processing Log")
+    accordion_panel_open("log_accordion", values = "Processing Log", session = session)
 
     # Show progress
     withProgress(message = "Processing document...", value = 0, {
