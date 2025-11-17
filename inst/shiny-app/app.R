@@ -104,16 +104,39 @@ ui <- page_sidebar(
     uiOutput("file_info")
   ),
 
-  # Main panel with results
-  card(
-    card_header("Copyediting Suggestions"),
-    card_body(
+  # Main panel with tabbed interface
+  navset_card_tab(
+    # Tab 1: Instructions
+    nav_panel(
+      "Instructions",
+      includeMarkdown("README.md")
+    ),
+
+    # Tab 2: Copyeditor
+    nav_panel(
+      "Copyeditor",
       uiOutput("status_message"),
+
+      # Collapsible process log
+      accordion(
+        accordion_panel(
+          "Processing Log",
+          verbatimTextOutput("process_log"),
+          icon = icon("list-check")
+        ),
+        id = "log_accordion",
+        open = FALSE  # Start collapsed
+      ),
+
+      br(),
+
+      # Results table
       withSpinner(
         DTOutput("results_table"),
         type = 6,
         color = "#007bff"
       ),
+
       br(),
       downloadButton("download_csv", "Download Results as CSV", class = "btn-success")
     )
@@ -129,6 +152,15 @@ server <- function(input, output, session) {
   # Reactive values
   results_data <- reactiveVal(NULL)
   processing_status <- reactiveVal("Upload a PDF to begin")
+  process_messages <- reactiveVal("")
+
+  # Helper function to add message to log
+  add_log_message <- function(msg) {
+    timestamp <- format(Sys.time(), "[%H:%M:%S]")
+    new_msg <- paste0(timestamp, " ", msg, "\n")
+    current <- process_messages()
+    process_messages(paste0(current, new_msg))
+  }
 
   # File info display
   output$file_info <- renderUI({
@@ -145,6 +177,11 @@ server <- function(input, output, session) {
     )
   })
 
+  # Render process log
+  output$process_log <- renderText({
+    process_messages()
+  })
+
   # Validation happens in observeEvent with req()
 
   # Process document when button clicked
@@ -153,8 +190,12 @@ server <- function(input, output, session) {
     req(input$doc_type)
     req(input$audience)
 
-    # Clear previous results
+    # Clear previous results and messages
     results_data(NULL)
+    process_messages("")
+
+    # Open the accordion to show processing log
+    accordion_panel_open("log_accordion", values = "Processing Log")
 
     # Show progress
     withProgress(message = "Processing document...", value = 0, {
@@ -166,6 +207,7 @@ server <- function(input, output, session) {
         # Validate it's a PDF
         file_ext <- tolower(tools::file_ext(input$pdf_file$name))
         if (file_ext != "pdf") {
+          add_log_message("⚠️ Error: Only PDF files are supported")
           showNotification(
             "Only PDF files are supported. Please upload a PDF file.",
             type = "error",
@@ -176,6 +218,8 @@ server <- function(input, output, session) {
 
         # Extract document
         incProgress(0.1, detail = "Extracting document content...")
+        add_log_message("⏳ Extracting document content...")
+
         extracted_doc <- if (input$mode == "text") {
           extract_to_text(file_path)
         } else {
@@ -183,9 +227,12 @@ server <- function(input, output, session) {
         }
 
         total_pages <- nrow(extracted_doc)
+        add_log_message(sprintf("📄 Document extracted: %d pages", total_pages))
 
         # Build prompts
         incProgress(0.2, detail = paste("Preparing", total_pages, "pages..."))
+        add_log_message(sprintf("⏳ Preparing %d pages to send to AI model", total_pages))
+
         user_message_chunks <- if (input$mode == "text") {
           build_prompt_text(
             extracted_document = extracted_doc,
@@ -213,6 +260,15 @@ server <- function(input, output, session) {
                            i, num_chunks, chunk$page_start, chunk$page_end)
           )
 
+          # Log chunk processing
+          if (num_chunks > 1) {
+            add_log_message(sprintf("⏳ [Chunk %d/%d] Sending pages %d-%d...",
+                                   i, num_chunks, chunk$page_start, chunk$page_end))
+          } else {
+            add_log_message(sprintf("⏳ Sending pages %d-%d...",
+                                   chunk$page_start, chunk$page_end))
+          }
+
           # Call API based on mode
           result <- if (input$mode == "text") {
             call_openai_api_text(user_message = chunk$user_message)
@@ -220,14 +276,18 @@ server <- function(input, output, session) {
             call_openai_api_images(user_content = chunk$user_message[[1]])
           }
 
-          # Collect suggestions
+          # Collect suggestions and log results
           if (!is.null(result$suggestions) && length(result$suggestions) > 0) {
             all_suggestions <- c(all_suggestions, result$suggestions)
+            add_log_message(sprintf("   ✓ %d suggestion(s) found", length(result$suggestions)))
+          } else {
+            add_log_message("   ✓ No issues found")
           }
         }
 
         # Format results
         incProgress(0.1, detail = "Formatting results...")
+        add_log_message("⏳ Formatting results...")
         results_df <- format_results(all_suggestions)
 
         # Store results
@@ -235,6 +295,7 @@ server <- function(input, output, session) {
 
         # Show success message
         if (nrow(results_df) > 0) {
+          add_log_message(sprintf("✅ Processing complete! Found %d suggestions", nrow(results_df)))
           processing_status(sprintf("✅ Found %d suggestion(s)", nrow(results_df)))
           showNotification(
             sprintf("Processing complete! Found %d suggestions.", nrow(results_df)),
@@ -242,6 +303,7 @@ server <- function(input, output, session) {
             duration = 5
           )
         } else {
+          add_log_message("🎉 Processing complete! No issues found")
           processing_status("🎉 No issues found!")
           showNotification(
             "Processing complete! No copyediting issues found.",
@@ -251,6 +313,7 @@ server <- function(input, output, session) {
         }
 
       }, error = function(e) {
+        add_log_message(sprintf("⚠️ Error: %s", e$message))
         processing_status(paste("⚠️ Error:", e$message))
         showNotification(
           paste("Error:", e$message),
