@@ -20,8 +20,29 @@ library(bslib)
 # For development, we'll source them directly
 pkg_root <- system.file(package = "bwcopyeditor")
 if (pkg_root == "") {
-  # Development mode - source files directly
-  pkg_root <- "../.."
+  # Development mode - find project root
+  # When Shiny runs the app, it may set different working directories
+  # Try to find the project root by looking for the DESCRIPTION file
+
+  # Start from current working directory and go up
+  current_dir <- getwd()
+  project_root <- NULL
+
+  # Try up to 5 levels up
+  for (i in 0:5) {
+    test_dir <- normalizePath(file.path(current_dir, paste(rep("..", i), collapse = "/")))
+    if (file.exists(file.path(test_dir, "DESCRIPTION")) &&
+        file.exists(file.path(test_dir, "config", "system_prompt.txt"))) {
+      project_root <- test_dir
+      break
+    }
+  }
+
+  if (is.null(project_root)) {
+    stop("Could not find project root. Please ensure you're running from within the bw-copyeditor project.")
+  }
+
+  pkg_root <- project_root
 
   # Save current directory and change to project root for sourcing
   original_wd <- getwd()
