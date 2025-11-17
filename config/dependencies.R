@@ -16,7 +16,8 @@
 check_dependencies <- function(auto_install = FALSE) {
   required_packages <- c(
     "pdftools", "tibble", "dplyr", "purrr",
-    "glue", "ellmer", "jsonlite", "rtiktoken"
+    "glue", "ellmer", "jsonlite", "rtiktoken",
+    "shiny", "DT", "shinycssloaders", "bslib"
   )
 
   # Check which packages are missing
@@ -74,3 +75,9 @@ library(rtiktoken)     # OpenAI tokenizer
 
 # Base R Utilities
 library(tools)         # File path utilities (file_ext, file_path_sans_ext)
+
+# Shiny Web Application
+library(shiny)         # Web application framework
+library(DT)            # Interactive tables
+library(shinycssloaders) # Loading spinners
+library(bslib)         # Modern UI theming
