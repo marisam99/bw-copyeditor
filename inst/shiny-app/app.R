@@ -106,6 +106,8 @@ ui <- page_sidebar(
 
   # Main panel with tabbed interface
   navset_card_tab(
+    id = "main_tabs",
+
     # Tab 1: Instructions
     nav_panel(
       "Instructions",
@@ -201,6 +203,9 @@ server <- function(input, output, session) {
     req(input$pdf_file)
     req(input$doc_type)
     req(input$audience)
+
+    # Switch to Copyeditor tab
+    nav_select(id = "main_tabs", selected = "Copyeditor", session = session)
 
     # Clear previous results and messages
     results_data(NULL)
