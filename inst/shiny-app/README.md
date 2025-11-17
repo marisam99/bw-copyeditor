@@ -62,7 +62,7 @@ run_copyeditor_app()
 
 ```r
 # Check which packages you need
-required <- c("shiny", "DT", "shinycssloaders", "bslib")
+required <- c("shiny", "DT", "shinycssloaders", "bslib", "here")
 missing <- required[!sapply(required, requireNamespace, quietly = TRUE)]
 
 if (length(missing) > 0) {
@@ -110,7 +110,7 @@ setwd("/path/to/bw-copyeditor")
 ### App Won't Start
 ```r
 # Check all packages are installed
-required <- c("shiny", "DT", "shinycssloaders", "bslib")
+required <- c("shiny", "DT", "shinycssloaders", "bslib", "here")
 sapply(required, requireNamespace, quietly = TRUE)  # All should be TRUE
 
 # Verify working directory

@@ -7,46 +7,27 @@
 # Note: In deployed app, packages are loaded from the package itself
 # For local development, ensure dependencies.R is sourced
 if (!requireNamespace("shiny", quietly = TRUE)) {
-  stop("Please install required packages. Run: install.packages(c('shiny', 'DT', 'shinycssloaders', 'bslib'))")
+  stop("Please install required packages. Run: install.packages(c('shiny', 'DT', 'shinycssloaders', 'bslib', 'here'))")
 }
 
 library(shiny)
 library(DT)
 library(shinycssloaders)
 library(bslib)
+library(here)
 
 # Load package functions
 # When running from installed package, these will be available
 # For development, we'll source them directly
 pkg_root <- system.file(package = "bwcopyeditor")
 if (pkg_root == "") {
-  # Development mode - find project root
-  # When Shiny runs the app, it may set different working directories
-  # Try to find the project root by looking for the DESCRIPTION file
-
-  # Start from current working directory and go up
-  current_dir <- getwd()
-  project_root <- NULL
-
-  # Try up to 5 levels up
-  for (i in 0:5) {
-    test_dir <- normalizePath(file.path(current_dir, paste(rep("..", i), collapse = "/")))
-    if (file.exists(file.path(test_dir, "DESCRIPTION")) &&
-        file.exists(file.path(test_dir, "config", "system_prompt.txt"))) {
-      project_root <- test_dir
-      break
-    }
-  }
-
-  if (is.null(project_root)) {
-    stop("Could not find project root. Please ensure you're running from within the bw-copyeditor project.")
-  }
-
-  pkg_root <- project_root
+  # Development mode - use here::here() to find project root
+  # The here package automatically finds the project root by looking for
+  # .Rproj, .git, DESCRIPTION, etc. Works reliably across all platforms
 
   # Save current directory and change to project root for sourcing
   original_wd <- getwd()
-  setwd(pkg_root)
+  setwd(here::here())
 
   source("config/dependencies.R")
   source("config/model_config.R")
