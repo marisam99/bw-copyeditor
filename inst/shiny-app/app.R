@@ -341,14 +341,16 @@ server <- function(input, output, session) {
     # Format severity column with colors
     df$severity <- factor(df$severity, levels = c("critical", "recommended", "optional"))
 
+    # Columns: page_number(0), issue(1), original_text(2), suggested_edit(3),
+    #          rationale(4), severity(5), confidence(6), is_valid(7)
     datatable(
       df,
       options = list(
         pageLength = 25,
         scrollX = TRUE,
-        order = list(list(0, "asc"), list(6, "desc")), # Sort by page, then severity
+        order = list(list(0, "asc"), list(5, "desc")), # Sort by page, then severity
         columnDefs = list(
-          list(visible = FALSE, targets = 8) # Hide is_valid column
+          list(visible = FALSE, targets = 7) # Hide is_valid column (0-indexed)
         )
       ),
       rownames = FALSE,
