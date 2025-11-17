@@ -121,12 +121,30 @@ ui <- page_sidebar(
       accordion(
         accordion_panel(
           "Processing Log",
-          verbatimTextOutput("process_log"),
+          tags$div(
+            id = "process_log",
+            style = "white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto; padding: 10px; background-color: #f8f9fa;"
+          ),
           icon = icon("list-check")
         ),
         id = "log_accordion",
         open = FALSE  # Start collapsed
       ),
+
+      # JavaScript to handle real-time log updates
+      tags$script(HTML("
+        Shiny.addCustomMessageHandler('append_log', function(message) {
+          var logDiv = document.getElementById('process_log');
+          logDiv.innerHTML += message;
+          // Auto-scroll to bottom
+          logDiv.scrollTop = logDiv.scrollHeight;
+        });
+
+        Shiny.addCustomMessageHandler('clear_log', function(message) {
+          var logDiv = document.getElementById('process_log');
+          logDiv.innerHTML = '';
+        });
+      ")),
 
       br(),
 
@@ -152,14 +170,13 @@ server <- function(input, output, session) {
   # Reactive values
   results_data <- reactiveVal(NULL)
   processing_status <- reactiveVal("Upload a PDF to begin")
-  process_messages <- reactiveVal("")
 
-  # Helper function to add message to log
+  # Helper function to add message to log in real-time
   add_log_message <- function(msg) {
     timestamp <- format(Sys.time(), "[%H:%M:%S]")
-    new_msg <- paste0(timestamp, " ", msg, "\n")
-    current <- process_messages()
-    process_messages(paste0(current, new_msg))
+    formatted_msg <- paste0(timestamp, " ", msg, "\n")
+    # Send to JavaScript for immediate display
+    session$sendCustomMessage("append_log", formatted_msg)
   }
 
   # File info display
@@ -177,11 +194,6 @@ server <- function(input, output, session) {
     )
   })
 
-  # Render process log
-  output$process_log <- renderText({
-    process_messages()
-  })
-
   # Validation happens in observeEvent with req()
 
   # Process document when button clicked
@@ -192,7 +204,7 @@ server <- function(input, output, session) {
 
     # Clear previous results and messages
     results_data(NULL)
-    process_messages("")
+    session$sendCustomMessage("clear_log", "")
 
     # Open the accordion to show processing log
     accordion_panel_open("log_accordion", values = "Processing Log", session = session)
