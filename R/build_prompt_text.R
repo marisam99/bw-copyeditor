@@ -228,10 +228,10 @@ build_prompt_text <- function(extracted_document,
   estimated_cost <- (total_tokens / 1000000) * COST_PER_1M
 
   message(glue(
-    "Estimated minimum cost: ${format(estimated_cost, digits = 2)} ",
+    "Minimum cost estimate: ${format(estimated_cost, digits = 2)} ",
     "(based on ~{format(total_tokens, big.mark = ',')} input tokens for {MODEL_TEXT})"
   ))
-  message("Note: Final cost will depend on response length.\n")
+  message("Note: This is a minimum based only on input tokens. The final cost will depend on the response length, which uses more expensive output tokens.\n")
 
   return(result)
 }

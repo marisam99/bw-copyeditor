@@ -243,10 +243,10 @@ build_prompt_images <- function(extracted_document, document_type, audience) {
   estimated_cost <- (chunk_info$estimated_ttl_input_tokens / 1000000) * COST_PER_1M
 
   message(glue(
-    "Estimated cost: ${format(estimated_cost, digits = 2)} ",
+    "Minimum cost estimate: ${format(estimated_cost, digits = 2)} ",
     "(based on ~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} input tokens for {MODEL_IMAGES})"
   ))
-  message("Note: This is the minimum estimate. The final cost will depend on the response length, and output tokens are more expensive.\n")
+  message("Note: This is a minimum based only on input tokens. The final cost will depend on the response length, which uses more expensive output tokens.\n")
 
   return(result)
 }
