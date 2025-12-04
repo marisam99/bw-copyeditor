@@ -13,7 +13,7 @@ An R package for automated copyediting using Large Language Models (LLMs). This 
 ### Input/Output
 
 **Input:**
-- PDF document via file picker (PDF only - export DOCX/PPTX to PDF first)
+- PDF document via file picker (PDF only - export Google Docs/Slides/Sheets to PDF first)
 - Document type (e.g., "external client-facing", "internal")
 - Audience description (e.g., "Healthcare executives")
 
@@ -53,7 +53,7 @@ The tool supports two parsing modes for PDF documents:
 -   **LLM usage:** Images sent to multimodal LLM (OpenAI GPT with vision) for review
 -   **Benefit:** Captures text within charts, diagrams, and other visual elements
 
-**Note:** If you have DOCX or PPTX files, export them to PDF first using File \> Save As \> PDF in Microsoft Office.
+**Note:** Export Google Docs, Slides, or Sheets files to PDF first using File \> Download \> PDF Document (.pdf).
 
 ------------------------------------------------------------------------
 

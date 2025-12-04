@@ -15,9 +15,11 @@ All of the below are **REQUIRED** inputs:
 
 -   **PDF file**: the file to be copyedited, clean of comments/tracked changes. Do NOT include endnotes. You MUST convert your file to PDF:
 
-    -   *In Word:* First clean the document of comments, tracked changes, etc. If you need to leave certain comments in, go to the Review tab and change the Markup setting from "All Markup" to "No Markup." Then go to File \> Print and ensure that the printer selected is "Microsoft Print to PDF." Select the pages you want to print (again, do NOT include endnotes!), and save the file as a .pdf.
+    -   *In Google Docs:* First clean the document of comments, suggested edits, etc. Then go to File \> Download \> PDF Document (.pdf). The file will download to your default download folder.
 
-    -   *In Powerpoint:* First clean up comments, then go to File \> Save a Copy and in the file type dropdown, choose .pdf. Then save the file in your chosen folder.
+    -   *In Google Slides:* First clean up comments, then go to File \> Download \> PDF Document (.pdf). The file will download to your default download folder.
+
+    -   *In Google Sheets:* Go to File \> Download \> PDF Document (.pdf). The file will download to your default download folder.
 
     -   If there are other file types you need guidance for, let Marisa know!
 

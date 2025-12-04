@@ -89,8 +89,8 @@ extract_document <- function(mode = c("text", "images")) {
   if (file_ext != "pdf") {
     stop(glue(
       "Only PDF files are supported. Found: {file_ext}\n",
-      "If you have a DOCX or PPTX file, please export to PDF first:\n",
-      "File > Save As > PDF\n",
+      "Please export to PDF first:\n",
+      "Google Docs/Slides/Sheets: File > Download > PDF Document (.pdf)\n",
       "For more information, see the README.md."
     ))
   }
