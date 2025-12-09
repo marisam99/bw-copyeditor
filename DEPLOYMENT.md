@@ -155,77 +155,6 @@ The app will be updated without creating a new instance.
 
 This ensures your deployed app only contains what it needs to run, keeping it clean and secure.
 
-## If You Already Deployed Incorrectly
-
-If you deployed using the old instructions (from `inst/shiny-app/` directory), the app won't work because it's missing the `R/` and `config/` files. Here's how to fix it:
-
-### Option 1: Redeploy Over the Existing App (Easiest)
-
-Simply run the correct deployment command. It will **overwrite** the broken deployment:
-
-```r
-setwd("/path/to/bw-copyeditor")
-
-rsconnect::deployApp(
-  appDir = ".",
-  appPrimaryDoc = "inst/shiny-app/app.R",
-  appFiles = c(
-    "inst/shiny-app/app.R",
-    "inst/shiny-app/README.md",
-    "R/",
-    "config/"
-  ),
-  appName = "bw-copyeditor",  # Use the SAME name as before
-  launch.browser = TRUE
-)
-```
-
-This will replace the broken app with the correct one at the same URL.
-
-### Option 2: Delete and Redeploy from Scratch
-
-If you want a clean slate:
-
-**Step 1: Delete the broken app**
-
-Go to [shinyapps.io](https://www.shinyapps.io/):
-1. Click **Applications** in left sidebar
-2. Click on **bw-copyeditor** (or whatever you named it)
-3. Click **Settings** tab
-4. Scroll to **Danger Zone** at bottom
-5. Click **Archive Application**
-6. Confirm deletion
-
-**Step 2: Deploy again with correct settings**
-
-```r
-setwd("/path/to/bw-copyeditor")
-
-rsconnect::deployApp(
-  appDir = ".",
-  appPrimaryDoc = "inst/shiny-app/app.R",
-  appFiles = c(
-    "inst/shiny-app/app.R",
-    "inst/shiny-app/README.md",
-    "R/",
-    "config/"
-  ),
-  appName = "bw-copyeditor",
-  launch.browser = TRUE
-)
-```
-
-### Option 3: Check If It Actually Worked
-
-Before doing anything, check if the deployment actually worked despite using the old method:
-
-1. Visit your app URL
-2. Try uploading a small PDF
-3. If it works, you're lucky! (Maybe you deployed from the project root by accident)
-4. If it crashes with errors about missing files/functions, use Option 1 to fix it
-
-**Recommended: Use Option 1** - It's fastest and preserves your app URL.
-
 ## Troubleshooting
 
 ### Deployment Fails with "Package X not found"
@@ -245,12 +174,6 @@ rsconnect::showLogs(appName = "bw-copyeditor")
 Common issues:
 - **"OPENAI_API_KEY not found"**: Add the environment variable in shinyapps.io settings
 - **"Cannot find file"**: Ensure all sourced files (R/, config/) are in `inst/shiny-app/` or use proper relative paths
-
-### "Too Many Applications" Error
-
-Free shinyapps.io accounts have a limit of 5 applications. Either:
-- Delete an unused app from your dashboard, or
-- Upgrade to a paid plan
 
 ### App Won't Start After Deployment
 
@@ -277,23 +200,6 @@ From the shinyapps.io dashboard:
 3. Click **Settings**
 4. Scroll to **Danger Zone**
 5. Click **Archive Application**
-
-## Usage Limits
-
-**Free Tier:**
-- 5 applications max
-- 25 active hours per month
-- 1 GB RAM per app
-- Apps sleep after 15 minutes of inactivity
-
-**Paid Tiers:**
-- More applications
-- More active hours
-- More RAM
-- No automatic sleep
-- Custom domains
-
-See [shinyapps.io pricing](https://www.shinyapps.io/pricing) for details.
 
 ## Security Best Practices
 
