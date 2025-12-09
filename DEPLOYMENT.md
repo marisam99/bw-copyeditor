@@ -99,10 +99,8 @@ rsconnect::deployApp(
 Set the environment variable directly from R:
 
 ```r
-rsconnect::setAccountInfo(name = "your-account-name")  # If not already set
-
 # Set the OPENAI_API_KEY environment variable
-rsconnect::configureApp(
+rsconnect::setEnvVars(
   appName = "bw-copyeditor",
   account = "your-account-name",
   envVars = c(OPENAI_API_KEY = "sk-your-actual-api-key-here")
@@ -113,8 +111,8 @@ rsconnect::restartApp(appName = "bw-copyeditor", account = "your-account-name")
 ```
 
 Replace:
-- `your-account-name` with your shinyapps.io account name
-- `sk-your-actual-api-key-here` with your actual OpenAI API key
+- `your-account-name` with your shinyapps.io account name (find it with `rsconnect::accounts()`)
+- `sk-your-actual-api-key-here` with your **NEW** OpenAI API key (create one at platform.openai.com/api-keys)
 
 ### Method 2: Via shinyapps.io Dashboard
 
