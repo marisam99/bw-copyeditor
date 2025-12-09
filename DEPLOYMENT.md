@@ -59,10 +59,23 @@ list.files()  # Should show R/, inst/, config/, etc.
 
 ## Step 5: Deploy the App
 
+**Important:** We deploy from the **project root**, not `inst/shiny-app/`, because the app needs access to:
+- `R/` - Core function scripts
+- `config/` - Configuration files
+- `inst/shiny-app/` - The Shiny app itself
+
+The `.rignore` file ensures development files (CLAUDE.md, TODO.md, tests/) are excluded.
+
 ```r
-# Deploy the app from the inst/shiny-app directory
+# Deploy from the project root
 rsconnect::deployApp(
-  appDir = "inst/shiny-app",
+  appDir = ".",  # Current directory (project root)
+  appFiles = c(
+    "inst/shiny-app/app.R",
+    "inst/shiny-app/README.md",
+    "R/",
+    "config/"
+  ),
   appName = "bw-copyeditor",  # Change this if you want a different URL
   launch.browser = TRUE
 )
@@ -109,13 +122,36 @@ After making changes to your code, redeploy with:
 setwd("/path/to/bw-copyeditor")
 
 rsconnect::deployApp(
-  appDir = "inst/shiny-app",
+  appDir = ".",
+  appFiles = c(
+    "inst/shiny-app/app.R",
+    "inst/shiny-app/README.md",
+    "R/",
+    "config/"
+  ),
   appName = "bw-copyeditor",
   launch.browser = FALSE
 )
 ```
 
 The app will be updated without creating a new instance.
+
+## What Gets Deployed?
+
+**Files included in deployment:**
+- `inst/shiny-app/app.R` - The Shiny app
+- `inst/shiny-app/README.md` - App instructions
+- `R/` - All R function scripts (extract_documents.R, build_prompt_text.R, etc.)
+- `config/` - Configuration files (dependencies.R, model_config.R)
+
+**Files excluded (via .rignore):**
+- `CLAUDE.md` - Development documentation
+- `TODO.md` - Task tracking
+- `tests/` - Test files
+- `.git/` - Git repository data
+- `.Rproj` files - RStudio project files
+
+This ensures your deployed app only contains what it needs to run, keeping it clean and secure.
 
 ## Troubleshooting
 
