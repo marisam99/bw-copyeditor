@@ -6,6 +6,9 @@ bw_copyeditor.R
 
 # Development documentation
 CLAUDE.md
+.claude/
+.claude/*
+DEPLOYMENT.md
 TODO.md
 
 # Tests directory
@@ -16,19 +19,10 @@ tests/*
 .git/
 .gitignore
 
-# RStudio files
-.Rproj.user/
-*.Rproj
-
 # R history and environment
 .Rhistory
 .RData
 .Ruserdata
-
-# Development files
-dev/
-scratch/
-.claude/
 
 # OS files
 .DS_Store

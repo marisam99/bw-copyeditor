@@ -53,9 +53,7 @@ MAX_COMPLETION_TOKENS_IMAGES <- 16000
 #' Image detail level for vision API (high or low)
 DETAIL_SETTING <- "high" # high recommended for copyediting to catch all text
 
-
-# Helper Functions ------------------------------------------------------------
-
+# Estimate tokens using rtiktoken based on model configurations----------------
 #' Estimate Text-Based Token Count
 #'
 #' Counts tokens in text using OpenAI's tokenizers.

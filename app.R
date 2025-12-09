@@ -3,77 +3,34 @@
 # ==============================================================================
 # Interactive web interface for the BW Copyeditor package
 
-# Load dependencies
-# Note: In deployed app, packages are loaded from the package itself
-# For local development, ensure dependencies.R is sourced
-if (!requireNamespace("shiny", quietly = TRUE)) {
-  stop("Please install required packages. Run: install.packages(c('shiny', 'DT', 'shinycssloaders', 'bslib', 'here', 'markdown'))")
-}
-
+# Load dependencies ------------------------------------------------------------
+ # shiny app tools
 library(shiny)
 library(DT)
 library(shinycssloaders)
 library(bslib)
+  # required tools
 library(here)
+library(pdftools)      # PDF extraction
+library(tibble)        # Data frames
+library(dplyr)         # Data manipulation
+library(purrr)         # Functional programming
+library(glue)          # String formatting
+library(ellmer)        # OpenAI API
+library(jsonlite)      # JSON parsing
+library(rtiktoken)     # Token counting
+library(tools)         # File utilities
 
-# Load package functions
-# When running from installed package, these will be available
-# For development, we'll source them directly
-pkg_root <- system.file(package = "bwcopyeditor")
-if (pkg_root == "") {
-  # Not installed as package - source files directly
+# Source all required files (skip dependencies.R - packages loaded above)
+source("config/model_config.R")
+source("helpers/01_load_context.R")
+source("helpers/02_extract_documents.R")
+source("helpers/03_build_prompt_text.R")
+source("helpers/03_build_prompt_images.R")
+source("helpers/04_call_openai_api.R")
+source("helpers/05_process_results.R")
 
-  # Determine the correct base path for sourcing files
-  # On shinyapps.io: Working directory is project root, files are at config/ and R/
-  # In local dev: here::here() finds project root
-
-  # Check if we're on shinyapps.io (or similar deployment)
-  # by checking if config/ and R/ exist in current directory
-  if (dir.exists("config") && dir.exists("R")) {
-    # Deployed environment (e.g., shinyapps.io) where WD is project root
-    # OR local development if running from project root
-    base_path <- "."
-  } else if (dir.exists("../../config") && dir.exists("../../R")) {
-    # Running from inst/shiny-app/ locally - go up two levels
-    base_path <- "../.."
-  } else {
-    # Fallback to here::here() for other scenarios
-    base_path <- here::here()
-  }
-
-  # Load required packages (in addition to Shiny packages loaded above)
-  library(pdftools)      # PDF extraction
-  library(tibble)        # Data frames
-  library(dplyr)         # Data manipulation
-  library(purrr)         # Functional programming
-  library(glue)          # String formatting
-  library(ellmer)        # OpenAI API
-  library(jsonlite)      # JSON parsing
-  library(rtiktoken)     # Token counting
-  library(tools)         # File utilities
-
-  # Source all required files (skip dependencies.R - packages loaded above)
-  source(file.path(base_path, "config/model_config.R"))
-  source(file.path(base_path, "R/load_context.R"))
-  source(file.path(base_path, "R/extract_documents.R"))
-  source(file.path(base_path, "R/build_prompt_text.R"))
-  source(file.path(base_path, "R/build_prompt_images.R"))
-  source(file.path(base_path, "R/call_openai_api.R"))
-  source(file.path(base_path, "R/process_results.R"))
-}
-
-# Determine README path based on environment
-readme_path <- if (base_path == ".") {
-  # Deployed environment - working directory is project root
-  "inst/shiny-app/README.md"
-} else {
-  # Local development - running from inst/shiny-app/
-  "README.md"
-}
-
-# ==============================================================================
-# UI
-# ==============================================================================
+# UI ---------------------------------------------------------------------------
 
 ui <- page_sidebar(
   title = "BW Copyeditor",
@@ -140,7 +97,7 @@ ui <- page_sidebar(
     # Tab 1: Instructions
     nav_panel(
       "Instructions",
-      includeMarkdown(readme_path)
+      includeMarkdown("app_instructions.md")
     ),
 
     # Tab 2: Copyeditor
@@ -192,9 +149,7 @@ ui <- page_sidebar(
   )
 )
 
-# ==============================================================================
-# Server
-# ==============================================================================
+# Server -----------------------------------------------------------------------
 
 server <- function(input, output, session) {
 

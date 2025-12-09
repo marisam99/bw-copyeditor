@@ -1,6 +1,5 @@
 # ==============================================================================
 # Title:        Document Processor
-# Last Updated: 2025-11-13
 # Description:  Main orchestrator function for the copyediting pipeline.
 #               Supports both text and image modes. Extracts PDF documents,
 #               builds prompts with automatic chunking, calls OpenAI API,
@@ -8,14 +7,14 @@
 # ==============================================================================
 
 # Configurations -------------------------------------------------------------
-source(file.path("config", "dependencies.R"))
-source(file.path("config", "model_config.R"))
-source(file.path("R", "load_context.R"))
-source(file.path("R", "extract_documents.R"))
-source(file.path("R", "build_prompt_text.R"))
-source(file.path("R", "build_prompt_images.R"))
-source(file.path("R", "call_openai_api.R"))
-source(file.path("R", "process_results.R"))
+source("config/dependencies.R")
+source("config/model_config.R")
+source("helpers/01_load_context.R")
+source("helpers/02_extract_documents.R")
+source("helpers/03_build_prompt_text.R")
+source("helpers/03_build_prompt_images.R")
+source("helpers/04_call_openai_api.R")
+source("helpers/05_process_results.R")
 
 # Main Function ---------------------------------------------------------------
 
