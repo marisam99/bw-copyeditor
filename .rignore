@@ -1,6 +1,9 @@
 # Files and directories to exclude when deploying to shinyapps.io
 # This file is used by rsconnect::deployApp()
 
+# Main R package file (conflicts with Shiny app deployment)
+bw_copyeditor.R
+
 # Development documentation
 CLAUDE.md
 TODO.md
@@ -25,6 +28,7 @@ tests/*
 # Development files
 dev/
 scratch/
+.claude/
 
 # OS files
 .DS_Store
