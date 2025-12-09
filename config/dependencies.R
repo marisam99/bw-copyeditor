@@ -48,8 +48,10 @@ check_dependencies <- function(auto_install = FALSE) {
   }
 }
 
-# Run dependency check
-check_dependencies()
+# Run dependency check (only in interactive sessions)
+if (interactive()) {
+  check_dependencies()
+}
 
 # Load Packages ---------------------------------------------------------------
 

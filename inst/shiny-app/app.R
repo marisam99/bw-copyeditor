@@ -52,6 +52,15 @@ if (pkg_root == "") {
   source(file.path(base_path, "R/process_results.R"))
 }
 
+# Determine README path based on environment
+readme_path <- if (base_path == ".") {
+  # Deployed environment - working directory is project root
+  "inst/shiny-app/README.md"
+} else {
+  # Local development - running from inst/shiny-app/
+  "README.md"
+}
+
 # ==============================================================================
 # UI
 # ==============================================================================
@@ -121,7 +130,7 @@ ui <- page_sidebar(
     # Tab 1: Instructions
     nav_panel(
       "Instructions",
-      includeMarkdown("README.md")
+      includeMarkdown(readme_path)
     ),
 
     # Tab 2: Copyeditor
