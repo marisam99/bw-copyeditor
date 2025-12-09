@@ -1,0 +1,31 @@
+# Files and directories to exclude when deploying to shinyapps.io
+# This file is used by rsconnect::deployApp()
+
+# Development documentation
+CLAUDE.md
+TODO.md
+
+# Tests directory
+tests/
+tests/*
+
+# Git files
+.git/
+.gitignore
+
+# RStudio files
+.Rproj.user/
+*.Rproj
+
+# R history and environment
+.Rhistory
+.RData
+.Ruserdata
+
+# Development files
+dev/
+scratch/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -59,10 +59,23 @@ list.files()  # Should show R/, inst/, config/, etc.
 
 ## Step 5: Deploy the App
 
+**Important:** We deploy from the **project root**, not `inst/shiny-app/`, because the app needs access to:
+- `R/` - Core function scripts
+- `config/` - Configuration files
+- `inst/shiny-app/` - The Shiny app itself
+
+The `.rignore` file ensures development files (CLAUDE.md, TODO.md, tests/) are excluded.
+
 ```r
-# Deploy the app from the inst/shiny-app directory
+# Deploy from the project root
 rsconnect::deployApp(
-  appDir = "inst/shiny-app",
+  appDir = ".",  # Current directory (project root)
+  appFiles = c(
+    "inst/shiny-app/app.R",
+    "inst/shiny-app/README.md",
+    "R/",
+    "config/"
+  ),
   appName = "bw-copyeditor",  # Change this if you want a different URL
   launch.browser = TRUE
 )
@@ -109,13 +122,105 @@ After making changes to your code, redeploy with:
 setwd("/path/to/bw-copyeditor")
 
 rsconnect::deployApp(
-  appDir = "inst/shiny-app",
+  appDir = ".",
+  appFiles = c(
+    "inst/shiny-app/app.R",
+    "inst/shiny-app/README.md",
+    "R/",
+    "config/"
+  ),
   appName = "bw-copyeditor",
   launch.browser = FALSE
 )
 ```
 
 The app will be updated without creating a new instance.
+
+## What Gets Deployed?
+
+**Files included in deployment:**
+- `inst/shiny-app/app.R` - The Shiny app
+- `inst/shiny-app/README.md` - App instructions
+- `R/` - All R function scripts (extract_documents.R, build_prompt_text.R, etc.)
+- `config/` - Configuration files (dependencies.R, model_config.R)
+
+**Files excluded (via .rignore):**
+- `CLAUDE.md` - Development documentation
+- `TODO.md` - Task tracking
+- `tests/` - Test files
+- `.git/` - Git repository data
+- `.Rproj` files - RStudio project files
+
+This ensures your deployed app only contains what it needs to run, keeping it clean and secure.
+
+## If You Already Deployed Incorrectly
+
+If you deployed using the old instructions (from `inst/shiny-app/` directory), the app won't work because it's missing the `R/` and `config/` files. Here's how to fix it:
+
+### Option 1: Redeploy Over the Existing App (Easiest)
+
+Simply run the correct deployment command. It will **overwrite** the broken deployment:
+
+```r
+setwd("/path/to/bw-copyeditor")
+
+rsconnect::deployApp(
+  appDir = ".",
+  appFiles = c(
+    "inst/shiny-app/app.R",
+    "inst/shiny-app/README.md",
+    "R/",
+    "config/"
+  ),
+  appName = "bw-copyeditor",  # Use the SAME name as before
+  launch.browser = TRUE
+)
+```
+
+This will replace the broken app with the correct one at the same URL.
+
+### Option 2: Delete and Redeploy from Scratch
+
+If you want a clean slate:
+
+**Step 1: Delete the broken app**
+
+Go to [shinyapps.io](https://www.shinyapps.io/):
+1. Click **Applications** in left sidebar
+2. Click on **bw-copyeditor** (or whatever you named it)
+3. Click **Settings** tab
+4. Scroll to **Danger Zone** at bottom
+5. Click **Archive Application**
+6. Confirm deletion
+
+**Step 2: Deploy again with correct settings**
+
+```r
+setwd("/path/to/bw-copyeditor")
+
+rsconnect::deployApp(
+  appDir = ".",
+  appFiles = c(
+    "inst/shiny-app/app.R",
+    "inst/shiny-app/README.md",
+    "R/",
+    "config/"
+  ),
+  appName = "bw-copyeditor",
+  launch.browser = TRUE
+)
+```
+
+### Option 3: Check If It Actually Worked
+
+Before doing anything, check if the deployment actually worked despite using the old method:
+
+1. Visit your app URL
+2. Try uploading a small PDF
+3. If it works, you're lucky! (Maybe you deployed from the project root by accident)
+4. If it crashes with errors about missing files/functions, use Option 1 to fix it
+
+**Recommended: Use Option 1** - It's fastest and preserves your app URL.
 
 ## Troubleshooting
 
