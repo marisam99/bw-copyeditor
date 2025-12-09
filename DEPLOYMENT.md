@@ -70,6 +70,7 @@ The `.rignore` file ensures development files (CLAUDE.md, TODO.md, tests/) are e
 # Deploy from the project root
 rsconnect::deployApp(
   appDir = ".",  # Current directory (project root)
+  appPrimaryDoc = "inst/shiny-app/app.R",  # Tell rsconnect which file is the app
   appFiles = c(
     "inst/shiny-app/app.R",
     "inst/shiny-app/README.md",
@@ -123,6 +124,7 @@ setwd("/path/to/bw-copyeditor")
 
 rsconnect::deployApp(
   appDir = ".",
+  appPrimaryDoc = "inst/shiny-app/app.R",
   appFiles = c(
     "inst/shiny-app/app.R",
     "inst/shiny-app/README.md",
@@ -166,6 +168,7 @@ setwd("/path/to/bw-copyeditor")
 
 rsconnect::deployApp(
   appDir = ".",
+  appPrimaryDoc = "inst/shiny-app/app.R",
   appFiles = c(
     "inst/shiny-app/app.R",
     "inst/shiny-app/README.md",
@@ -200,6 +203,7 @@ setwd("/path/to/bw-copyeditor")
 
 rsconnect::deployApp(
   appDir = ".",
+  appPrimaryDoc = "inst/shiny-app/app.R",
   appFiles = c(
     "inst/shiny-app/app.R",
     "inst/shiny-app/README.md",
