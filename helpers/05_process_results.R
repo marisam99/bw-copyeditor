@@ -1,8 +1,8 @@
 # ==============================================================================
 # Title:        Result Formatter
-# Last Updated: 2025-11-13
 # Description:  Functions to format, display, and export copyediting suggestions
 #               from LLM API responses into clean, structured data frames.
+# Output:       a dataframe with the expected output columns (see README.md)
 # ==============================================================================
 
 

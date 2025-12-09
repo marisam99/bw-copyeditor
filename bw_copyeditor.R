@@ -1,9 +1,10 @@
 # ==============================================================================
-# Title:        Document Processor
+# Title:        Bellwether Copyeditor - R version
 # Description:  Main orchestrator function for the copyediting pipeline.
 #               Supports both text and image modes. Extracts PDF documents,
 #               builds prompts with automatic chunking, calls OpenAI API,
 #               and returns structured copyediting suggestions.
+#               Separate from the shinytool, this script is meant to be run via R.
 # ==============================================================================
 
 # Configurations -------------------------------------------------------------

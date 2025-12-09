@@ -1,7 +1,7 @@
 # ==============================================================================
-# BW Copyeditor Shiny App
+# Title:        Bellwether Copyeditor Shiny App
+# Description:  Interactive web interface for the Bellwether Copyeditor tool.
 # ==============================================================================
-# Interactive web interface for the BW Copyeditor package
 
 # Load dependencies ------------------------------------------------------------
  # shiny app tools

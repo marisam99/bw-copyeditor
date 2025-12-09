@@ -1,6 +1,5 @@
 # ==============================================================================
 # Title:        Load System Prompt
-# Last Updated: 2025-11-05
 # Description:  Functions to load system prompt and related information from config directory.
 #               Uses rtiktoken for accurate token counting matching OpenAI's tokenizers.
 # Output:       Global variables SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS

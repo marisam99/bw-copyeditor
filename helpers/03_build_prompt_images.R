@@ -1,6 +1,5 @@
 # ==============================================================================
-# Title:        Image Prompt Builder
-# Last Updated: 2025-11-05
+# Title:        Prompt Builder for Image Mode
 # Description:  Functions to build user message for multimodal LLM from extracted image document.
 #               Uses ellmer package to format images for vision-capable models.
 #               Handles automatic chunking for large documents that would exceed context window limits.

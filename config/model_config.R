@@ -1,8 +1,8 @@
 # ==============================================================================
-# Model Configuration for BW Copyeditor
+# Title:        Model Configuration
+# Description:  Centralized configuration settings for the AI model used in the copyeditor.
+#               Modify values here to change model selections, context windows, and API parameters.
 # ==============================================================================
-# This file contains all centralized configuration settings for the copyediting tool.
-# Modify values here to change model selections, context windows, and API parameters.
 
 # Global Settings -------------------------------------------------------------
 # Settings that apply across all modes (text and images)
