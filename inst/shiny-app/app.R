@@ -24,17 +24,20 @@ if (pkg_root == "") {
   # Not installed as package - source files directly
 
   # Determine the correct base path for sourcing files
-  # On shinyapps.io: app.R is in inst/shiny-app/, need to go up 2 levels
+  # On shinyapps.io: Working directory is project root, files are at config/ and R/
   # In local dev: here::here() finds project root
 
   # Check if we're on shinyapps.io (or similar deployment)
-  # by checking if config/ exists relative to current dir
-  if (dir.exists("../../config") && dir.exists("../../R")) {
-    # Deployed environment (e.g., shinyapps.io)
-    # app.R is in inst/shiny-app/, files are two levels up
+  # by checking if config/ and R/ exist in current directory
+  if (dir.exists("config") && dir.exists("R")) {
+    # Deployed environment (e.g., shinyapps.io) where WD is project root
+    # OR local development if running from project root
+    base_path <- "."
+  } else if (dir.exists("../../config") && dir.exists("../../R")) {
+    # Running from inst/shiny-app/ locally - go up two levels
     base_path <- "../.."
   } else {
-    # Local development - use here::here()
+    # Fallback to here::here() for other scenarios
     base_path <- here::here()
   }
 
