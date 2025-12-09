@@ -41,8 +41,18 @@ if (pkg_root == "") {
     base_path <- here::here()
   }
 
-  # Source all required files
-  source(file.path(base_path, "config/dependencies.R"))
+  # Load required packages (in addition to Shiny packages loaded above)
+  library(pdftools)      # PDF extraction
+  library(tibble)        # Data frames
+  library(dplyr)         # Data manipulation
+  library(purrr)         # Functional programming
+  library(glue)          # String formatting
+  library(ellmer)        # OpenAI API
+  library(jsonlite)      # JSON parsing
+  library(rtiktoken)     # Token counting
+  library(tools)         # File utilities
+
+  # Source all required files (skip dependencies.R - packages loaded above)
   source(file.path(base_path, "config/model_config.R"))
   source(file.path(base_path, "R/load_context.R"))
   source(file.path(base_path, "R/extract_documents.R"))
