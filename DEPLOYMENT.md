@@ -69,19 +69,20 @@ The `.rignore` file ensures development files (CLAUDE.md, TODO.md, tests/) are e
 ```r
 # Deploy from the project root
 rsconnect::deployApp(
-  appDir = ".",  # Current directory (project root)
-  appPrimaryDoc = "inst/shiny-app/app.R",  # Tell rsconnect which file is the app
+  appDir = ".",
+  appPrimaryDoc = "inst/shiny-app/app.R",
   appFiles = c(
     "inst/shiny-app/app.R",
     "inst/shiny-app/README.md",
+    "inst/shiny-app/.Renviron",
+    "bw_copyeditor.R",
     "R/",
     "config/"
   ),
-  appName = "bw-copyeditor",  # Change this if you want a different URL
+  appName = "bw-copyeditor",
   launch.browser = TRUE
 )
 ```
-
 **What happens during deployment:**
 - All app files (`app.R`, `README.md`) are uploaded
 - R package dependencies are detected and installed on the server
@@ -90,69 +91,7 @@ rsconnect::deployApp(
 
 **First deployment typically takes 5-10 minutes** as all packages are installed.
 
-## Step 6: Configure Environment Variables
-
-**CRITICAL:** The app won't work without your OpenAI API key.
-
-### Method 1: Transfer from Local Environment (Recommended)
-
-This is the **current best practice** for shinyapps.io as of 2024-2025.
-
-1. **Set the API key in your local R environment** (one-time setup):
-
-```r
-# Edit your user .Renviron file
-file.edit("~/.Renviron")
-
-# Add this line to the file (replace with your actual NEW API key):
-# OPENAI_API_KEY=sk-your-new-api-key-here
-
-# Save the file and restart R for it to take effect
-```
-
-2. **Verify it's set locally:**
-
-```r
-Sys.getenv("OPENAI_API_KEY")  # Should show your key
-```
-
-3. **Deploy with the `envVars` parameter** - this transfers the variable from your local environment to shinyapps.io:
-
-```r
-rsconnect::deployApp(
-  appDir = ".",
-  appPrimaryDoc = "inst/shiny-app/app.R",
-  appFiles = c(
-    "inst/shiny-app/app.R",
-    "inst/shiny-app/README.md",
-    "R/",
-    "config/"
-  ),
-  appName = "bw-copyeditor",
-  envVars = c("OPENAI_API_KEY"),  # Transfer this variable from local to shinyapps.io
-  launch.browser = TRUE
-)
-```
-
-The `envVars` parameter tells rsconnect to copy the `OPENAI_API_KEY` from your local environment to the deployed app.
-
-### Method 2: Via shinyapps.io Dashboard
-
-1. Go to [shinyapps.io](https://www.shinyapps.io/) and log in
-2. Click **Applications** in the left sidebar
-3. Click on **bw-copyeditor**
-4. Click the **Settings** tab
-5. Look for the **Vars** section (might be under "General" or a separate section)
-6. Click **Add** or **New Variable**
-7. Set:
-   - **Name:** `OPENAI_API_KEY`
-   - **Value:** Your OpenAI API key (starts with `sk-...`)
-8. Click **Save**
-9. **Click Restart** to apply the changes
-
-**Note:** The exact location of environment variables in the dashboard may vary. Look for "Vars", "Environment Variables", or similar in the Settings area.
-
-## Step 7: Test Your Deployed App
+## Step 6: Test Your Deployed App
 
 1. Visit your app URL: `https://your-account.shinyapps.io/bw-copyeditor`
 2. Upload a small test PDF (< 5 pages recommended for first test)
@@ -163,27 +102,7 @@ The `envVars` parameter tells rsconnect to copy the `OPENAI_API_KEY` from your l
 
 ## Updating Your Deployed App
 
-After making changes to your code, redeploy with:
-
-```r
-setwd("/path/to/bw-copyeditor")
-
-rsconnect::deployApp(
-  appDir = ".",
-  appPrimaryDoc = "inst/shiny-app/app.R",
-  appFiles = c(
-    "inst/shiny-app/app.R",
-    "inst/shiny-app/README.md",
-    "R/",
-    "config/"
-  ),
-  appName = "bw-copyeditor",
-  envVars = c("OPENAI_API_KEY"),  # Keep environment variable updated
-  launch.browser = FALSE
-)
-```
-
-The app will be updated without creating a new instance. The `envVars` parameter ensures your API key remains set.
+After making changes to your code, redeploy with the same code as in Step 5. The system will give you different updating options; choose accordingly.
 
 ## What Gets Deployed?
 
