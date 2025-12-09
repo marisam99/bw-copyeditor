@@ -1,6 +1,5 @@
 # ==============================================================================
-# Title:        Prompt Builder
-# Last Updated: 2025-11-05
+# Title:        Prompt Builder for Text Mode
 # Description:  Functions to build user message for LLM prompt from extracted text document.
 #               Combines document content with project context (document type, audience).
 #               Handles automatic chunking for large documents that would exceed token limits.

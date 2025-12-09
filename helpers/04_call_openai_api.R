@@ -1,8 +1,8 @@
 # ==============================================================================
 # Title:        OpenAI API Caller (using ellmer package)
-# Last Updated: 2025-11-13
 # Description:  Functions to call OpenAI API for copyediting using the ellmer package.
 #               Supports both text-only and multimodal (image) modes.
+# Output:       a list object with the JSON response, model and usage information, and API metadata.
 # ==============================================================================
 
 # Helper Functions ------------------------------------------------------------
