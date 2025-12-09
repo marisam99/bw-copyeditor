@@ -21,25 +21,32 @@ library(here)
 # For development, we'll source them directly
 pkg_root <- system.file(package = "bwcopyeditor")
 if (pkg_root == "") {
-  # Development mode - use here::here() to find project root
-  # The here package automatically finds the project root by looking for
-  # .Rproj, .git, DESCRIPTION, etc. Works reliably across all platforms
+  # Not installed as package - source files directly
 
-  # Save current directory and change to project root for sourcing
-  original_wd <- getwd()
-  setwd(here::here())
+  # Determine the correct base path for sourcing files
+  # On shinyapps.io: app.R is in inst/shiny-app/, need to go up 2 levels
+  # In local dev: here::here() finds project root
 
-  source("config/dependencies.R")
-  source("config/model_config.R")
-  source("R/load_context.R")
-  source("R/extract_documents.R")
-  source("R/build_prompt_text.R")
-  source("R/build_prompt_images.R")
-  source("R/call_openai_api.R")
-  source("R/process_results.R")
+  # Check if we're on shinyapps.io (or similar deployment)
+  # by checking if config/ exists relative to current dir
+  if (dir.exists("../../config") && dir.exists("../../R")) {
+    # Deployed environment (e.g., shinyapps.io)
+    # app.R is in inst/shiny-app/, files are two levels up
+    base_path <- "../.."
+  } else {
+    # Local development - use here::here()
+    base_path <- here::here()
+  }
 
-  # Restore original directory
-  setwd(original_wd)
+  # Source all required files
+  source(file.path(base_path, "config/dependencies.R"))
+  source(file.path(base_path, "config/model_config.R"))
+  source(file.path(base_path, "R/load_context.R"))
+  source(file.path(base_path, "R/extract_documents.R"))
+  source(file.path(base_path, "R/build_prompt_text.R"))
+  source(file.path(base_path, "R/build_prompt_images.R"))
+  source(file.path(base_path, "R/call_openai_api.R"))
+  source(file.path(base_path, "R/process_results.R"))
 }
 
 # ==============================================================================
