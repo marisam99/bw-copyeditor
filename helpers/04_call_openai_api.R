@@ -170,12 +170,12 @@ call_openai_api_text <- function(user_message) {
     # Create chat session (ellmer reads OPENAI_API_KEY from environment automatically)
     # GPT-5 is a reasoning model that doesn't support the temperature parameter
     # (only supports default value of 1)
-    # Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
+    # Use reasoning.effort: minimal for faster responses on straightforward tasks like copyediting
     chat <- chat_openai(
       system_prompt = SYSTEM_PROMPT,
       model = MODEL_TEXT,
       api_args = list(
-        reasoning_effort = REASONING_LEVEL
+        reasoning.effort = REASONING_LEVEL
       ),
       echo = "none"
     )
@@ -230,13 +230,13 @@ call_openai_api_images <- function(user_content) {
     # GPT-5 is a reasoning model that:
     # - Requires max_completion_tokens instead of max_tokens
     # - Does not support temperature parameter (only accepts default value of 1)
-    # - Use reasoning_effort: minimal for faster responses on straightforward tasks like copyediting
+    # - Use reasoning.effort: minimal for faster responses on straightforward tasks like copyediting
     chat <- chat_openai(
       system_prompt = SYSTEM_PROMPT,
       model = MODEL_IMAGES,
       api_args = list(
         max_completion_tokens = MAX_COMPLETION_TOKENS_IMAGES,
-        reasoning_effort = REASONING_LEVEL
+        reasoning.effort = REASONING_LEVEL
       ),
       echo = "none"
     )
