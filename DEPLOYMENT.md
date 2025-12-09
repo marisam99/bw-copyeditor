@@ -94,17 +94,47 @@ rsconnect::deployApp(
 
 **CRITICAL:** The app won't work without your OpenAI API key.
 
+### Method 1: Using rsconnect (Recommended - Easier)
+
+Set the environment variable directly from R:
+
+```r
+rsconnect::setAccountInfo(name = "your-account-name")  # If not already set
+
+# Set the OPENAI_API_KEY environment variable
+rsconnect::configureApp(
+  appName = "bw-copyeditor",
+  account = "your-account-name",
+  envVars = c(OPENAI_API_KEY = "sk-your-actual-api-key-here")
+)
+
+# Restart the app to apply changes
+rsconnect::restartApp(appName = "bw-copyeditor", account = "your-account-name")
+```
+
+Replace:
+- `your-account-name` with your shinyapps.io account name
+- `sk-your-actual-api-key-here` with your actual OpenAI API key
+
+### Method 2: Via shinyapps.io Dashboard
+
+If you prefer using the web interface:
+
 1. Go to [shinyapps.io](https://www.shinyapps.io/)
 2. Click **Applications** in the left sidebar
 3. Click on **bw-copyeditor** (or whatever you named it)
-4. Click the **Settings** tab
-5. Scroll down to **Environment Variables**
-6. Click **Add Variable**
-7. Set:
+4. Look for one of these tabs (UI varies):
+   - **Settings** tab → look for **Environment Variables** or **Vars** section
+   - **Vars** tab (might be a separate tab)
+   - **Configuration** tab → **Environment Variables**
+5. Click **Add Variable** or **New Variable**
+6. Set:
    - **Name:** `OPENAI_API_KEY`
    - **Value:** Your OpenAI API key (starts with `sk-...`)
-8. Click **Save Settings**
-9. Click **Restart** to apply the changes
+7. Click **Save** or **Add**
+8. **Important:** Click **Restart** or **Restart Application** to apply changes
+
+**Note:** The shinyapps.io UI changes occasionally. If you can't find environment variables in the dashboard, use Method 1 (rsconnect) which always works.
 
 ## Step 7: Test Your Deployed App
 
