@@ -22,6 +22,7 @@ library(rtiktoken)     # Token counting
 library(tools)         # File utilities
 
 # Source all required files (skip dependencies.R - packages loaded above)
+readRenviron(".Renviron") # sets environment variables
 source("config/model_config.R")
 source("helpers/01_load_context.R")
 source("helpers/02_extract_documents.R")
