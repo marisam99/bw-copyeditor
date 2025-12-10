@@ -1,4 +1,4 @@
-# bw-copyeditor
+# Bellwether's AI Copyeditor
 
 ## Overview
 

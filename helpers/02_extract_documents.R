@@ -1,6 +1,5 @@
 # ==============================================================================
 # Title:        Document Extracter
-# Last Updated: 2025-01-04
 # Description:  Functions to extract content from PDF documents for LLM copyediting.
 #               Text mode for documents without images (extracts text by page).
 #               Image mode for documents with images (e.g., slide decks, embedded charts) (converts pages to images).

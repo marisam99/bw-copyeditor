@@ -1,8 +1,8 @@
 # ==============================================================================
-# Package Dependencies for BW Copyeditor
+# Title:        Package Dependencies
+# Description:  Loads all required packages for the copyediting tool.
+#               Missing packages are automatically detected and can be installed when prompted.
 # ==============================================================================
-# This file loads all required packages for the copyediting tool.
-# Missing packages will be automatically detected and can be installed when prompted.
 
 # Check and Install Missing Packages ------------------------------------------
 
@@ -48,8 +48,10 @@ check_dependencies <- function(auto_install = FALSE) {
   }
 }
 
-# Run dependency check
-check_dependencies()
+# Run dependency check (only in interactive sessions)
+if (interactive()) {
+  check_dependencies()
+}
 
 # Load Packages ---------------------------------------------------------------
 

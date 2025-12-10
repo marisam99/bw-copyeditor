@@ -1,50 +1,36 @@
 # ==============================================================================
-# BW Copyeditor Shiny App
+# Title:        Bellwether Copyeditor Shiny App
+# Description:  Interactive web interface for the Bellwether Copyeditor tool.
 # ==============================================================================
-# Interactive web interface for the BW Copyeditor package
 
-# Load dependencies
-# Note: In deployed app, packages are loaded from the package itself
-# For local development, ensure dependencies.R is sourced
-if (!requireNamespace("shiny", quietly = TRUE)) {
-  stop("Please install required packages. Run: install.packages(c('shiny', 'DT', 'shinycssloaders', 'bslib', 'here', 'markdown'))")
-}
-
+# Load dependencies ------------------------------------------------------------
+ # shiny app tools
 library(shiny)
 library(DT)
 library(shinycssloaders)
 library(bslib)
+  # required tools
 library(here)
+library(pdftools)      # PDF extraction
+library(tibble)        # Data frames
+library(dplyr)         # Data manipulation
+library(purrr)         # Functional programming
+library(glue)          # String formatting
+library(ellmer)        # OpenAI API
+library(jsonlite)      # JSON parsing
+library(rtiktoken)     # Token counting
+library(tools)         # File utilities
 
-# Load package functions
-# When running from installed package, these will be available
-# For development, we'll source them directly
-pkg_root <- system.file(package = "bwcopyeditor")
-if (pkg_root == "") {
-  # Development mode - use here::here() to find project root
-  # The here package automatically finds the project root by looking for
-  # .Rproj, .git, DESCRIPTION, etc. Works reliably across all platforms
+# Source all required files (skip dependencies.R - packages loaded above)
+source("config/model_config.R")
+source("helpers/01_load_context.R")
+source("helpers/02_extract_documents.R")
+source("helpers/03_build_prompt_text.R")
+source("helpers/03_build_prompt_images.R")
+source("helpers/04_call_openai_api.R")
+source("helpers/05_process_results.R")
 
-  # Save current directory and change to project root for sourcing
-  original_wd <- getwd()
-  setwd(here::here())
-
-  source("config/dependencies.R")
-  source("config/model_config.R")
-  source("R/load_context.R")
-  source("R/extract_documents.R")
-  source("R/build_prompt_text.R")
-  source("R/build_prompt_images.R")
-  source("R/call_openai_api.R")
-  source("R/process_results.R")
-
-  # Restore original directory
-  setwd(original_wd)
-}
-
-# ==============================================================================
-# UI
-# ==============================================================================
+# UI ---------------------------------------------------------------------------
 
 ui <- page_sidebar(
   title = "BW Copyeditor",
@@ -68,13 +54,13 @@ ui <- page_sidebar(
     textInput(
       "doc_type",
       "Document Type:",
-      placeholder = "e.g., External client-facing report"
+      placeholder = "e.g., client-facing grant report, case study for publication"
     ),
 
     textInput(
       "audience",
       "Target Audience:",
-      placeholder = "e.g., Healthcare executives"
+      placeholder = "e.g., CMO leaders, state policymakers"
     ),
 
     hr(),
@@ -111,7 +97,7 @@ ui <- page_sidebar(
     # Tab 1: Instructions
     nav_panel(
       "Instructions",
-      includeMarkdown("README.md")
+      includeMarkdown("app_instructions.md")
     ),
 
     # Tab 2: Copyeditor
@@ -130,7 +116,7 @@ ui <- page_sidebar(
           icon = icon("list-check")
         ),
         id = "log_accordion",
-        open = FALSE  # Start collapsed
+        open = TRUE  # Start open so user can see processing immediately
       ),
 
       # JavaScript to handle real-time log updates
@@ -145,6 +131,27 @@ ui <- page_sidebar(
         Shiny.addCustomMessageHandler('clear_log', function(message) {
           var logDiv = document.getElementById('process_log');
           logDiv.innerHTML = '';
+        });
+
+        Shiny.addCustomMessageHandler('open_log_accordion', function(message) {
+          // Find the accordion button and collapse element
+          var accordionButton = document.querySelector('#log_accordion .accordion-button');
+          var accordionCollapse = document.querySelector('#log_accordion .accordion-collapse');
+
+          if (accordionButton && accordionCollapse) {
+            // If not already open, open it
+            if (!accordionCollapse.classList.contains('show')) {
+              accordionButton.click();
+            }
+          }
+        });
+
+        Shiny.addCustomMessageHandler('switch_to_copyeditor', function(message) {
+          // Find and click the Copyeditor tab
+          var copyeditorTab = document.querySelector('a[data-value=\"Copyeditor\"]');
+          if (copyeditorTab) {
+            copyeditorTab.click();
+          }
         });
       ")),
 
@@ -163,9 +170,7 @@ ui <- page_sidebar(
   )
 )
 
-# ==============================================================================
-# Server
-# ==============================================================================
+# Server -----------------------------------------------------------------------
 
 server <- function(input, output, session) {
 
@@ -204,15 +209,12 @@ server <- function(input, output, session) {
     req(input$doc_type)
     req(input$audience)
 
-    # Switch to Copyeditor tab
-    nav_select(id = "main_tabs", selected = "Copyeditor", session = session)
+    # Switch to Copyeditor tab using JavaScript (bypasses Shiny batching)
+    session$sendCustomMessage("switch_to_copyeditor", TRUE)
 
     # Clear previous results and messages
     results_data(NULL)
     session$sendCustomMessage("clear_log", "")
-
-    # Open the accordion to show processing log
-    accordion_panel_open("log_accordion", values = "Processing Log", session = session)
 
     # Show progress
     withProgress(message = "Processing document...", value = 0, {

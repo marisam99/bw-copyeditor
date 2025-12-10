@@ -1,8 +1,8 @@
 # ==============================================================================
-# Model Configuration for BW Copyeditor
+# Title:        Model Configuration
+# Description:  Centralized configuration settings for the AI model used in the copyeditor.
+#               Modify values here to change model selections, context windows, and API parameters.
 # ==============================================================================
-# This file contains all centralized configuration settings for the copyediting tool.
-# Modify values here to change model selections, context windows, and API parameters.
 
 # Global Settings -------------------------------------------------------------
 # Settings that apply across all modes (text and images)
@@ -17,9 +17,10 @@ DEFAULT_TEMPERATURE <- 0.3
 #' Used for rate limit errors (429) and server errors (500, 502, 503, 504)
 MAX_RETRY_ATTEMPTS <- 3
 
-#' Default reasoning level for reasoning API calls. (minimal, low, medium, high)
+#' Default reasoning level for reasoning API calls. (none, medium, high)
 #' NOTE: GPT-4o and 4.1 are not reasoning models and do not support this parameter
-REASONING_LEVEL <- "minimal" # GPT-5 only
+#' For straightforward tasks like copyediting, "none" provides faster responses
+REASONING_LEVEL <- "medium" # GPT-5.1 only
 
 #' Pricing for input tokens
 COST_PER_1M <- 1.25 # for GPT-5, as of November 13, 2025
@@ -53,9 +54,7 @@ MAX_COMPLETION_TOKENS_IMAGES <- 16000
 #' Image detail level for vision API (high or low)
 DETAIL_SETTING <- "high" # high recommended for copyediting to catch all text
 
-
-# Helper Functions ------------------------------------------------------------
-
+# Estimate tokens using rtiktoken based on model configurations----------------
 #' Estimate Text-Based Token Count
 #'
 #' Counts tokens in text using OpenAI's tokenizers.
