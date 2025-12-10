@@ -54,13 +54,13 @@ ui <- page_sidebar(
     textInput(
       "doc_type",
       "Document Type:",
-      placeholder = "e.g., External client-facing report"
+      placeholder = "e.g., client-facing grant report, case study for publication"
     ),
 
     textInput(
       "audience",
       "Target Audience:",
-      placeholder = "e.g., Healthcare executives"
+      placeholder = "e.g., CMO leaders, state policymakers"
     ),
 
     hr(),
