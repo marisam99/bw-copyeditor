@@ -35,10 +35,6 @@ MODEL_TEXT <- "gpt-5" # GPT-5 is a reasoning model with balanced costs
 #' Maximum tokens per API request for text mode
 CONTEXT_WINDOW_TEXT <- 400000
 
-#' HTTP timeout for API requests in seconds
-#' Text mode: 600 seconds (10 minutes) - should be sufficient for long documents with reasoning
-TIMEOUT_TEXT <- 600
-
 # Image Mode Configuration ----------------------------------------------------
 # Settings for image-based copyediting (slide decks, presentations, visual documents)
 
@@ -56,10 +52,6 @@ MAX_COMPLETION_TOKENS_IMAGES <- 16000
 
 #' Image detail level for vision API (high or low)
 DETAIL_SETTING <- "high" # high recommended for copyediting to catch all text
-
-#' HTTP timeout for API requests in seconds
-#' Image mode gets 900 seconds (15 minutes) as vision processing takes longer
-TIMEOUT_IMAGES <- 900
 
 # Estimate tokens using rtiktoken based on model configurations----------------
 #' Estimate Text-Based Token Count

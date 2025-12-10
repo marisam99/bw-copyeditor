@@ -20,6 +20,8 @@ library(ellmer)        # OpenAI API
 library(jsonlite)      # JSON parsing
 library(rtiktoken)     # Token counting
 library(tools)         # File utilities
+  # manually set timeout to 15 minutes (900 seconds) to give reasoning time
+options(httr2_timeout = 900)
 
 # Source all required files (skip dependencies.R - packages loaded above)
 readRenviron(".Renviron") # sets environment variables
