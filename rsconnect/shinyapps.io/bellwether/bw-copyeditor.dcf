@@ -5,6 +5,6 @@ account: bellwether
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 16280891
-bundleId: 11300302
+bundleId: 11300336
 url: https://bellwether.shinyapps.io/bw-copyeditor/
 version: 1

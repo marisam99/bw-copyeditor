@@ -7,7 +7,7 @@ This directory contains configuration files and information for the bw-copyedito
 ### `model_config.R` : Central configuration for models, token limits, and API settings.
 
 **Global Settings (apply to both text and image mode):**\
-- `REASONING_LEVEL` : Applies to GPT-5 only; determines the amount of time GPT-5 should spend "thinking" about the task (minimal, low, medium, or high) \| default: "minimal"\
+- `REASONING_LEVEL` : Applies to GPT-5 only; determines the amount of time GPT-5 should spend "thinking" about the task (none, low, medium, or high) \| default: "medium"\
 - `MAX_RETRY_ATTEMPTS` : Retry attempts for API failures \| default: 3
 
 **Text Mode Settings:**

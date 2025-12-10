@@ -41,7 +41,7 @@ Return ALL your findings as a JSON array where each object has this structure:
 
 ## IMPORTANT:
 - Return ONLY the JSON array with square brackets [], with no additional text before or after
-- ALWAYS use array format [{}], NEVER return a single object {}
+- ALWAYS use array format [{}], NEVER return a single object
 - If there are no issues, return an empty array: []
 - Ensure the JSON is valid and properly formatted
 

@@ -17,9 +17,10 @@ DEFAULT_TEMPERATURE <- 0.3
 #' Used for rate limit errors (429) and server errors (500, 502, 503, 504)
 MAX_RETRY_ATTEMPTS <- 3
 
-#' Default reasoning level for reasoning API calls. (minimal, low, medium, high)
+#' Default reasoning level for reasoning API calls. (none, medium, high)
 #' NOTE: GPT-4o and 4.1 are not reasoning models and do not support this parameter
-REASONING_LEVEL <- "minimal" # GPT-5 only
+#' For straightforward tasks like copyediting, "none" provides faster responses
+REASONING_LEVEL <- "medium" # GPT-5.1 only
 
 #' Pricing for input tokens
 COST_PER_1M <- 1.25 # for GPT-5, as of November 13, 2025
