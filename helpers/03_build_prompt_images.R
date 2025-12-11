@@ -4,7 +4,7 @@
 #               Uses ellmer package to format images for vision-capable models.
 #               Handles automatic chunking for large documents that would exceed context window limits.
 #               Uses fixed token estimates for image processing costs.
-# Output:       A 
+# Output:       A tibble with fields: chunk_id | page_start | page_end | user_message (list object)
 # ==============================================================================
 
 # Helper Functions ------------------------------------------------------------
@@ -34,12 +34,29 @@ build_multimodal_message <- function(extracted_document, document_type, audience
     # Add page label (plain string)
     content[[length(content) + 1]] <- glue("\nPage {page_num}:")
 
-    # Add image using ellmer's helper function
-    # content_image_file() handles encoding automatically
-    content[[length(content) + 1]] <- content_image_file(
-      path = image_path,
-      resize = DETAIL_SETTING
-    )
+    # Validate file exists and is readable
+    if (!file.exists(image_path)) {
+      stop(sprintf("Image file missing for page %d: %s", page_num, image_path))
+    }
+
+    file_size <- file.size(image_path)
+    if (is.na(file_size) || file_size == 0) {
+      stop(sprintf("Image file invalid for page %d: %s (size: %s bytes)",
+                   page_num, image_path, ifelse(is.na(file_size), "NA", "0")))
+    }
+
+    message(sprintf("Encoding page %d: %s (%.1f KB)",
+                    page_num, basename(image_path), file_size / 1024))
+
+    # Encode image with error handling
+    image_content <- tryCatch({
+      content_image_file(path = image_path, resize = DETAIL_SETTING)
+    }, error = function(e) {
+      stop(sprintf("Failed to encode page %d: %s. Error: %s",
+                   page_num, image_path, conditionMessage(e)))
+    })
+
+    content[[length(content) + 1]] <- image_content
   }
 
   return(content)
@@ -72,8 +89,6 @@ check_for_chunk <- function(extracted_document, document_type, audience) {
   safety_limit <- floor(CONTEXT_WINDOW_IMAGES * 0.9) # Leave room for system prompt + response
   images_per_chunk <- floor(safety_limit / per_image_tokens) # Calculates safe no. of images per API call
   if (total_images <= images_per_chunk && estimated_ttl_input_tokens <= safety_limit) {
-    # Suppress message - this is reported by the calling function
-    # message("Document fits in single chunk - no splitting needed")
     chunk_decision <- "no"
   } else {
     chunk_decision <- "yes"
@@ -187,23 +202,6 @@ chunk_by_images <- function(extracted_document, document_type, audience, chunk_i
 #' @export
 build_prompt_images <- function(extracted_document, document_type, audience) {
 
-  # Validate inputs
-  if (missing(extracted_document) || !inherits(extracted_document, "data.frame")) {
-    stop("extracted_document must be a tibble/data.frame from extract_document(mode = 'images')")
-  }
-
-  if (!"page_number" %in% names(extracted_document) || !"image_path" %in% names(extracted_document)) {
-    stop("extracted_document must have 'page_number' and 'image_path' columns. Did you use mode = 'images'?")
-  }
-
-  if (missing(document_type) || is.null(document_type) || nchar(trimws(document_type)) == 0) {
-    stop("Document_type cannot be empty. See README for examples.")
-  }
-
-  if (missing(audience) || is.null(audience) || nchar(trimws(audience)) == 0) {
-    stop("Audience cannot be empty. See README for examples.")
-  }
-
   # Determine whether to chunk
   chunk_info <- check_for_chunk(extracted_document, document_type, audience)
 
@@ -237,15 +235,6 @@ build_prompt_images <- function(extracted_document, document_type, audience) {
       chunk_info = chunk_info
     )
   }
-
-  # Estimate total cost (rough)
-  estimated_cost <- (chunk_info$estimated_ttl_input_tokens / 1000000) * COST_PER_1M
-
-  message(glue(
-    "Minimum cost estimate: ${format(estimated_cost, digits = 2)} ",
-    "(based on ~{format(chunk_info$estimated_ttl_input_tokens, big.mark = ',')} input tokens for {MODEL_IMAGES})"
-  ))
-  message("Note: This is a minimum based only on input tokens. The final cost will depend on the response length, which uses more expensive output tokens.\n")
 
   return(result)
 }

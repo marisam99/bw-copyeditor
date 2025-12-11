@@ -141,7 +141,8 @@ copyedit_document <- function(mode = c("text", "images"),
         chunk_id = chunk$chunk_id,
         page_start = chunk$page_start,
         page_end = chunk$page_end,
-        usage = result$usage
+        cost = result$cost,
+        duration = result$duration
       )
 
     }, error = function(e) {

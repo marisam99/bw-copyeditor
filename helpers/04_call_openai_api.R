@@ -2,7 +2,7 @@
 # Title:        OpenAI API Caller (using ellmer package)
 # Description:  Functions to call OpenAI API for copyediting using the ellmer package.
 #               Supports both text-only and multimodal (image) modes.
-# Output:       a list object with the JSON response, model and usage information, and API metadata.
+# Output:       a list object with suggestions, model name, cost (dollars), and duration (seconds).
 # ==============================================================================
 
 # Helper Functions ------------------------------------------------------------
@@ -78,7 +78,7 @@ with_retry <- function(fn, max_attempts = MAX_RETRY_ATTEMPTS) {
 #' @param response Response content from chat$chat().
 #' @param model Model name used.
 #' @param chat The ellmer chat session.
-#' @return List with parsed suggestions and metadata.
+#' @return List with suggestions, model, cost (in dollars), and duration (in seconds).
 #' @keywords internal
 parse_json_response <- function(response, model, chat) {
 
@@ -100,35 +100,23 @@ parse_json_response <- function(response, model, chat) {
     list()  # Return empty list if parsing fails
   })
 
-  # Try to get usage information from chat object
-  usage <- tryCatch({
-    chat$last_turn()$tokens
-  }, error = function(e) {
-    NULL
-  })
-
-  # Try to get other metadata
-  response_metadata <- tryCatch({
+  # Get cost and duration from turn object (S4 slots, use @ not $)
+  turn_metadata <- tryCatch({
     turn <- chat$last_turn()
     list(
-      finish_reason = if (is.null(turn$finish_reason)) "unknown" else turn$finish_reason,
-      created = if (is.null(turn$created)) Sys.time() else turn$created,
-      id = if (is.null(turn$id)) NA else turn$id
+      cost = if (is.null(turn@cost)) NA_real_ else as.numeric(turn@cost),
+      duration = if (is.null(turn@duration)) NA_real_ else turn@duration
     )
   }, error = function(e) {
-    list(
-      finish_reason = "unknown",
-      created = Sys.time(),
-      id = NA
-    )
+    list(cost = NA_real_, duration = NA_real_)
   })
 
   # Return structured result
   result <- list(
     suggestions = suggestions,
     model = model,
-    usage = usage,
-    response_metadata = response_metadata
+    cost = turn_metadata$cost,
+    duration = turn_metadata$duration
   )
 
   return(result)
@@ -141,8 +129,8 @@ parse_json_response <- function(response, model, chat) {
 #'
 #' Sends text to OpenAI API for copyediting. For images, use call_openai_api_images().
 #'
-#' @param user_message User message text from build_prompt_text().
-#' @return List with suggestions, model, usage, and response_metadata.
+#' @param user_message User message text (string) from build_prompt_text().
+#' @return List with suggestions, model, cost (in dollars), and duration (in seconds).
 #'
 #' @examples
 #' \dontrun{
@@ -160,23 +148,23 @@ call_openai_api_text <- function(user_message) {
   # Validate API key
   validate_api_key()
 
-  # Validate inputs
-  if (!is.character(user_message) || length(user_message) != 1) {
-    stop("user_message must be a single character string. For more information, see the README.md.")
-  }
-
   # Execute with retry logic
   result <- with_retry(function() {
-    # Set timeout
-    options(elmer.timeout = TIMEOUT_TEXT)
 
-    # Create chat session
+    # Create chat session with metadata
     chat <- chat_openai(
       system_prompt = SYSTEM_PROMPT,
       model = MODEL_TEXT,
       api_args = list(
         reasoning = list(
           effort = REASONING_LEVEL
+        ),
+        store = STORAGE_MODE,
+        metadata = list(
+          mode = "text",
+          phase = PHASE,
+          system_prompt = SYSTEM_PROMPT_VERSION,
+          reasoning = REASONING_LEVEL
         )
       ),
       echo = "none"
@@ -185,9 +173,9 @@ call_openai_api_text <- function(user_message) {
     # Send message and get response
     start_time <- Sys.time()
     response <- chat$chat(user_message)
-    elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "secs")), 1)
+    elapsed <- round(as.numeric(difftime(Sys.time(), start_time, units = "mins")), 1)
 
-    message(sprintf("✅ Response received in %.1f seconds", elapsed))
+    message(sprintf("✅ Response received in %.1f minutes", elapsed))
 
     # Parse the JSON response
     parse_json_response(response, MODEL_TEXT, chat)
@@ -203,7 +191,7 @@ call_openai_api_text <- function(user_message) {
 #' For text-only documents, use call_openai_api_text().
 #'
 #' @param user_content Ellmer-formatted content from build_prompt_images().
-#' @return List with suggestions, model, usage, and response_metadata.
+#' @return List with suggestions, model, cost (in dollars), and duration (in seconds).
 #'
 #' @examples
 #' \dontrun{
@@ -229,16 +217,22 @@ call_openai_api_images <- function(user_content) {
   # Execute with retry logic
   result <- with_retry(function() {
     # Set timeout
-    options(elmer.timeout = TIMEOUT_IMAGES)
 
-    # Create chat session
+    # Create chat session with metadata
     chat <- chat_openai(
       system_prompt = SYSTEM_PROMPT,
       model = MODEL_IMAGES,
       api_args = list(
-        max_output_tokens = MAX_COMPLETION_TOKENS_IMAGES,
+        max_output_tokens = MAX_TOKENS_IMAGES,
         reasoning = list(
           effort = REASONING_LEVEL
+        ),
+        store = STORAGE_MODE,
+        metadata = list(
+          mode = "images",
+          phase = PHASE,
+          system_prompt = SYSTEM_PROMPT_VERSION,
+          reasoning = REASONING_LEVEL
         )
       ),
       echo = "none"

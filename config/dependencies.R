@@ -17,7 +17,8 @@ check_dependencies <- function(auto_install = FALSE) {
   required_packages <- c(
     "pdftools", "tibble", "dplyr", "purrr",
     "glue", "ellmer", "jsonlite", "rtiktoken",
-    "shiny", "DT", "shinycssloaders", "bslib", "here", "markdown"
+    "shiny", "DT", "shinycssloaders", "bslib", "here", "markdown",
+    "magick"
   )
 
   # Check which packages are missing
@@ -57,6 +58,7 @@ if (interactive()) {
 
 # PDF Processing
 library(pdftools)      # Extract text and convert PDFs to images
+library(magick)        # Image processing for resizing (required by ellmer)
 
 # Data Manipulation (tidyverse)
 library(tibble)        # Modern data frames

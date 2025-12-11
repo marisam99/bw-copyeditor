@@ -6,12 +6,13 @@
 # STEP BY STEP TESTING FOR DEBUGGING: ---------------------------------------
 source("config/dependencies.R")
 source("config/model_config.R")
-source("R/load_context.R")
-source("R/extract_documents.R")
-source("R/build_prompt_text.R")
-source("R/build_prompt_images.R")
-source("R/call_openai_api.R")
-source("R/process_results.R")
+source("helpers/01_load_context.R")
+source("helpers/02_extract_documents.R")
+source("helpers/03_build_prompt_text.R")
+source("helpers/03_build_prompt_images.R")
+source("helpers/04_call_openai_api.R")
+source("helpers/05_process_results.R")
+source("archived_code.R")
 
 ## TEXT MODE
 edlight <- extract_document(mode = "text")
@@ -33,6 +34,14 @@ skunk_prompt <- build_prompt_images(skunkworks301,
 skunk_msg <- skunk_prompt$user_message[[1]]
 skunk_rsp <- call_openai_api_images(skunk_msg)
 skunk_edits <- format_results(skunk_rsp$suggestions)
+
+## IMAGE MODE WITH CHUNKING
+landscape_scanJPM <- extract_document(mode = "images")
+jpm_prompt <- build_prompt_images(skunkworks301, 
+  "internal presentation", "non-technical colleagues")
+jpm_msg <- skunk_prompt$user_message[[1]]
+jpm_rsp <- call_openai_api_images(skunk_msg)
+jpm_edits <- format_results(skunk_rsp$suggestions)
 
 # FULL COPYEDITOR TESTING ------------------------------------------------------
 source("R/bw_copyeditor.R")

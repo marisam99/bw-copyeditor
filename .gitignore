@@ -3,3 +3,6 @@
 # R environment files (contain API keys and secrets)
 .Renviron
 .Rprofile
+
+# Session image directories (temporary files for image mode processing)
+session_images/

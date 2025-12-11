@@ -22,8 +22,7 @@ create_empty_results_df <- function() {
     suggested_edit = character(0),
     rationale = character(0),
     severity = character(0),
-    confidence = numeric(0),
-    is_valid = logical(0)
+    confidence = numeric(0)
   )
 }
 
@@ -135,16 +134,16 @@ format_results <- function(suggestions_list) {
   results_df <- validate_results(results_df)
 
   # Order columns (preserve API response order, just reorder columns)
-  results_df <- results_df |>
+  final_df <- results_df |>
     select(page_number, issue, original_text, suggested_edit,
-           rationale, severity, confidence, is_valid)
+           rationale, severity, confidence)
 
   # Inform user if no results found
   if (nrow(results_df) == 0) {
     message("No copyediting suggestions found.")
   }
 
-  return(results_df)
+  return(final_df)
 }
 
 
@@ -182,72 +181,6 @@ print_summary <- function(results_df) {
   }
 
   cat("\n")
-
-  return(invisible(NULL))
-}
-
-
-#' Export Results to CSV
-#'
-#' Exports results to CSV in the same folder as source document.
-#'
-#' @param results_df Results from process_document().
-#' @param output_filename Output file name (default: "copyedit_results.csv").
-#' @param include_metadata Include metadata file (default: TRUE).
-#' @return Invisible NULL.
-#'
-#' @examples
-#' \dontrun{
-#'   results <- process_document()
-#'   export_results(results)
-#'   export_results(results, "my_results.csv")
-#' }
-#'
-#' @export
-export_results <- function(results_df, output_filename = "copyedit_results.csv", include_metadata = TRUE) {
-
-  # Get source file directory from metadata
-  file_path <- attr(results_df, "file_path")
-
-  if (!is.null(file_path) && file.exists(file_path)) {
-    output_dir <- dirname(file_path)
-    output_path <- file.path(output_dir, output_filename)
-  } else {
-    # Fallback to current directory if file_path not available
-    output_path <- output_filename
-    warning("⚠️ Source file path not found in metadata. Saving to current directory.")
-  }
-
-  # Export main results
-  write.csv(results_df, output_path, row.names = FALSE)
-  cat(sprintf("✅ Results exported to: %s\n", output_path))
-
-  # Export metadata if requested
-  if (include_metadata && !is.null(attr(results_df, "mode"))) {
-
-    # Create metadata data frame
-    doc_mode <- attr(results_df, "mode")
-    doc_type <- attr(results_df, "document_type")
-    aud <- attr(results_df, "audience")
-    chunks <- attr(results_df, "num_chunks")
-
-    metadata <- data.frame(
-      mode = if (is.null(doc_mode)) NA else doc_mode,
-      document_type = if (is.null(doc_type)) NA else doc_type,
-      audience = if (is.null(aud)) NA else aud,
-      pages_processed = paste(attr(results_df, "pages_processed"), collapse = ", "),
-      num_chunks = if (is.null(chunks)) 1 else chunks,
-      model = attr(results_df, "model"),
-      total_suggestions = nrow(results_df),
-      processed_at = as.character(attr(results_df, "processed_at")),
-      stringsAsFactors = FALSE
-    )
-
-    # Write metadata
-    metadata_path <- sub("\\.csv$", "_metadata.csv", output_path)
-    write.csv(metadata, metadata_path, row.names = FALSE)
-    cat(sprintf("✅ Metadata exported to: %s\n", metadata_path))
-  }
 
   return(invisible(NULL))
 }

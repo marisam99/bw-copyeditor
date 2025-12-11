@@ -4,14 +4,20 @@
 #               Modify values here to change model selections, context windows, and API parameters.
 # ==============================================================================
 
-# Global Settings -------------------------------------------------------------
-# Settings that apply across all modes (text and images)
+# API Metadata Configuration ------------------------------------------------------
+# Metadata attached to all API requests for tracking in OpenAI Platform logs
 
-#' Default sampling temperature for non-reasoning API calls. Range: 0.0-2.0
-#' Lower values (closer to 0) make output more focused and deterministic.
-#' NOTE: GPT-5 (reasoning model) does not support temperature parameter
-#' This setting is retained for backward compatibility but not currently used.
-DEFAULT_TEMPERATURE <- 0.3
+#' Current development phase for tracking experiments and releases
+PHASE <- "eval_rd1"  # Options: "dev", "eval_rd1", "eval_rd2", "beta", "prod"
+
+#' System prompt version for tracking prompt iterations
+SYSTEM_PROMPT_VERSION <- "2025-12-10.v4"
+
+#' System prompt version for tracking prompt iterations
+STORAGE_MODE <- TRUE
+
+# GLOBAL Model Settings -------------------------------------------------------------
+# Settings that apply across all modes (text and images)
 
 #' Maximum number of retry attempts for failed API requests
 #' Used for rate limit errors (429) and server errors (500, 502, 503, 504)
@@ -19,18 +25,13 @@ MAX_RETRY_ATTEMPTS <- 3
 
 #' Default reasoning level for reasoning API calls. (none, medium, high)
 #' NOTE: GPT-4o and 4.1 are not reasoning models and do not support this parameter
-#' For straightforward tasks like copyediting, "none" provides faster responses
-REASONING_LEVEL <- "medium" # GPT-5.1 only
+REASONING_LEVEL <- "medium"
 
-#' Pricing for input tokens
-COST_PER_1M <- 1.25 # for GPT-5, as of November 13, 2025
-
-
-# Text Mode Configuration -----------------------------------------------------
+# TEXT Mode Configuration -----------------------------------------------------
 # Settings for text-only copyediting (publications, reports, text-heavy documents)
 
 #' Model: 
-MODEL_TEXT <- "gpt-5" # GPT-5 is a reasoning model with balanced costs
+MODEL_TEXT <- "gpt-5.1"
 
 #' Maximum tokens per API request for text mode
 CONTEXT_WINDOW_TEXT <- 400000
@@ -39,15 +40,15 @@ CONTEXT_WINDOW_TEXT <- 400000
 # Settings for image-based copyediting (slide decks, presentations, visual documents)
 
 #' Model for image-based copyediting (must support computer vision)
-MODEL_IMAGES <- "gpt-5" # GPT-5 has multimodal capabilities
+MODEL_IMAGES <- "gpt-5.1"
 
 #' Maximum tokens per API request for image mode
 CONTEXT_WINDOW_IMAGES <- 180000 # Lower than text mode due to image token overhead
 
 #' Maximum completion tokens in response for image mode
-#' Note: GPT-5 requires max_completion_tokens instead of max_tokens;
+#' Note: GPT-5.1 requires max_output_tokens instead of max_tokens;
 #'      previous models will not use this parameter
-MAX_COMPLETION_TOKENS_IMAGES <- 16000 
+MAX_TOKENS_IMAGES <- 16000 
 #' Higher than default due to potentially more issues to report from visual content
 
 #' Image detail level for vision API (high or low)

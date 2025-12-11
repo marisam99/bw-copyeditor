@@ -4,6 +4,8 @@
 #               Uses appFiles parameter to exclude unnecessary files.
 # ==============================================================================
 
+# BEFORE DEPLOYING, MAKE SURE YOU ADJUST THE METADATA TAGS IN model_config.R
+
 # Load required package
 library(rsconnect)
 
@@ -13,7 +15,7 @@ app_files <- c(
   "app_instructions.md",
   ".Renviron",
   "config/",
-  "helpers"
+  "helpers/"
 )
 
 # Deploy to shinyapps.io
@@ -26,3 +28,6 @@ deployApp(
   forceUpdate = TRUE,
   launch.browser = TRUE
 )
+
+# For debugging: show logs
+showLogs()

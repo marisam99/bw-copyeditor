@@ -6,8 +6,6 @@
 # Output:       A tibble, with fields dependent on text or image mode
 # ==============================================================================
 
-# Helper Functions ------------------------------------------------------------
-
 #' Extract Text from PDF by Page
 #' @param file_path Path to PDF file
 #' @return A tibble with columns: page_number (integer) and content (character)
@@ -23,89 +21,74 @@ extract_to_text <- function(file_path) {
   )
 }
 
+#' Create Session-Scoped Image Directory
+#' @return Character path to created directory
+#' @keywords internal
+create_image_directory <- function() {
+  # Generate unique session ID
+  session_id <- paste0(
+    format(Sys.time(), "%Y%m%d_%H%M%S"),
+    "_",
+    paste(sample(c(letters, 0:9), 6), collapse = "")
+  )
+
+  # Create in working directory (not tempdir)
+  img_dir <- file.path(getwd(), "session_images", session_id)
+
+  if (!dir.exists(img_dir)) {
+    dir.create(img_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  # Validate creation
+  if (!dir.exists(img_dir)) {
+    stop(sprintf("Failed to create image directory: %s", img_dir))
+  }
+
+  return(img_dir)
+}
+
+#' Clean Up Session Image Directory
+#' @param img_dir Path to image directory
+#' @keywords internal
+cleanup_image_directory <- function(img_dir) {
+  if (is.null(img_dir) || !dir.exists(img_dir)) {
+    return(invisible(NULL))
+  }
+
+  tryCatch({
+    unlink(img_dir, recursive = TRUE, force = TRUE)
+    message(sprintf("✅ Cleaned up: %s", basename(img_dir)))
+  }, error = function(e) {
+    warning(sprintf("⚠️ Cleanup failed: %s", img_dir))
+  })
+
+  invisible(NULL)
+}
+
 #' Convert PDF Pages to Images
 #' @param file_path Path to PDF file
-#' @return A tibble with columns: page_number (integer) and image_path (character).
-#'   Images are saved to temporary directory and persist for the R session.
+#' @return A tibble with columns: page_number, image_path, output_dir
 #' @keywords internal
 extract_to_images <- function(file_path) {
-  # Convert PDF pages to PNG images in temp directory
+  # Create session-specific directory in working directory
+  output_dir <- create_image_directory()
+
+  # Convert PDF pages to PNG images
   # Suppress warning from pdftools internal sprintf call
   image_paths <- suppressWarnings(
     pdf_convert(
       pdf = file_path,
       format = "png",
       dpi = 150,
-      filenames = file.path(tempdir(), "page_%d.png"),
+      filenames = file.path(output_dir, "page_%d.png"),
       verbose = FALSE
     )
   )
 
-  # Return tibble with page numbers and image paths
+  # Return tibble with directory info for cleanup
   tibble(
     page_number = seq_along(image_paths),
-    image_path = image_paths
+    image_path = image_paths,
+    output_dir = output_dir
   )
-}
-
-
-# Main Function ----------------------------------------------------------------
-
-#' Extract PDF Document
-#'
-#' Opens a file picker and extracts content from a PDF.
-#'
-#' @param mode Extraction mode: "text" (default) or "image".
-#'   Text mode: For reports and publications.
-#'   Images mode: For slide decks with visuals.
-#' @return A table with page numbers and either text content or image file paths.
-#'
-#' @examples
-#' \dontrun{
-#'   # Extract text from a report
-#'   doc <- extract_document()
-#'
-#'   # Extract images from a slide deck
-#'   slides <- extract_document(mode = "images")
-#' }
-#'
-#' @export
-extract_document <- function(mode = c("text", "images")) {
-
-  # Match mode argument
-  mode <- match.arg(mode)
-
-  # Open file picker
-  file_path <- file.choose()
-
-  # Check if file exists
-  if (!file.exists(file_path)) {
-    stop(glue("File not found: {file_path}. If your PDF is in a Sharepoint folder, wait for it to stop syncing."))
-  }
-
-  # Get file extension; validate that it's PDF
-  file_ext <- tolower(file_ext(file_path))
-  if (file_ext != "pdf") {
-    stop(glue(
-      "Only PDF files are supported. Found: {file_ext}\n",
-      "If you have a DOCX or PPTX file, please export to PDF first:\n",
-      "File > Save As > PDF\n",
-      "For more information, see the README.md."
-    ))
-  }
-
-  # Start extraction
-  message("⏳ Extracting document content...\n")
-
-  # Extract content based on mode
-  result <- if (mode == "text") {
-    extract_to_text(file_path)
-  } else {
-    extract_to_images(file_path)
-  }
-
-  # Store file path in attributes
-  attr(result, "file_path") <- file_path
-
-  return(result)
 }
