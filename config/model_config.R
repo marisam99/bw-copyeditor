@@ -43,13 +43,12 @@ CONTEXT_WINDOW_TEXT <- 400000
 MODEL_IMAGES <- "gpt-5.1"
 
 #' Maximum tokens per API request for image mode
-CONTEXT_WINDOW_IMAGES <- 180000 # Lower than text mode due to image token overhead
+CONTEXT_WINDOW_IMAGES <- 250000 # Lower than text mode due to image token overhead
 
 #' Maximum completion tokens in response for image mode
 #' Note: GPT-5.1 requires max_output_tokens instead of max_tokens;
 #'      previous models will not use this parameter
-MAX_TOKENS_IMAGES <- 16000 
-#' Higher than default due to potentially more issues to report from visual content
+MAX_TOKENS_IMAGES <- 128000 # 5.1's max per API documentation
 
 #' Image detail level for vision API (high or low)
 DETAIL_SETTING <- "high" # high recommended for copyediting to catch all text

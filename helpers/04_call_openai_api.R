@@ -216,7 +216,6 @@ call_openai_api_images <- function(user_content) {
 
   # Execute with retry logic
   result <- with_retry(function() {
-    # Set timeout
 
     # Create chat session with metadata
     chat <- chat_openai(
