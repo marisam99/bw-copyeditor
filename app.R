@@ -428,7 +428,7 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       req(results_data())
-      write.csv(results_data(), file, row.names = FALSE)
+      write.csv(results_data(), file, row.names = FALSE, fileEncoding = "UTF-8")
     }
   )
 
