@@ -1,0 +1,6 @@
+"response_id","created_at","model","input_tokens","output_tokens","total_tokens","cached_tokens","reasoning_tokens","cost_usd","mode","phase","system_prompt_version","reasoning_level"
+"resp_07e6db5dec2d8d8c006943275abe7481a2aeb2f48ff1a414cd",2025-12-17 21:57:46,"gpt-5.1-2025-11-13",16527,12961,29488,0,8058,0.15026875,"text","eval_rd1","2025-12-10.v4","medium"
+"resp_0bc0785db137b39c006943293a0cb48190a0a19522dbb1df91",2025-12-17 22:05:46,"gpt-5.1-2025-11-13",14296,11192,25488,0,9042,0.12979,"images","eval_rd1","2025-12-10.v4","medium"
+"resp_022c006cd7588eb4006942d8af6d2881a39b47b9d9230091c6",2025-12-17 16:22:07,"gpt-5.1-2025-11-13",16218,16190,32408,0,9628,0.1821725,"images","eval_rd1","2025-12-10.v4","medium"
+"resp_0c349ce3524d928e00693b47ba57fc8195958149c08ee32871",2025-12-11 22:37:46,"gpt-5.1-2025-11-13",8497,9156,17653,0,6742,0.10218125,"images","eval_rd1","2025-12-10.v4","medium"
+"resp_05ab2fdfb34294b4006942daccac4881a1ad0f3d62255e8054",2025-12-17 16:31:08,"gpt-5.1-2025-11-13",4006,7414,11420,0,5869,0.0791475,"text","eval_rd1","2025-12-10.v4","medium"
